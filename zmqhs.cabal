@@ -42,16 +42,15 @@ Build-type:          Simple
 -- Extra-source-files:  
 
 -- Constraint on the version of Cabal needed to build this package.
-Cabal-version:       >=1.2
-
+Cabal-version:       >=1.8
 
 Library
   Hs-Source-Dirs: src
   -- Modules exported by the library.
-  Exposed-modules: ZMQHS.Framing
+  Exposed-modules: ZMQHS.Frame
   
   -- Packages needed in order to build this package.
-  Build-depends: base
+  Build-depends: base, binary, binary-strict, bytestring
   
   -- Modules not exported by this package.
   -- Other-modules:       
@@ -59,3 +58,7 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
   
+Executable test
+  Build-depends: zmqhs, base, binary, bytestring
+  Main-is: test/frame/TestParse.hs
+  Data-dir: src
