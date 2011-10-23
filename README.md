@@ -9,6 +9,8 @@ Pure ZMQ. No FFI.
 
   http://stackoverflow.com/questions/3120796/haskell-testing-workflow/3120826#3120826
 
+http://hpaste.org/53004#a53006
+
 Contact
 -------
 
