@@ -59,6 +59,6 @@ Library
   -- Build-tools:         
   
 Executable test
-  Build-depends: base, binary, binary-strict, bytestring, zmqhs
+  Build-depends: base, binary, bytestring, attoparsec, zmqhs
   Main-is: test/frame/TestParse.hs
   Data-dir: src
