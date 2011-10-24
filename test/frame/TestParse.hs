@@ -4,9 +4,9 @@ import qualified Data.ByteString as B (pack)
 import qualified Data.Attoparsec as AP
 import qualified ZMQHS.Frame     as ZF
 
-test_one_complete   = B.pack [1,4,65]
+test_one_complete   = B.pack [1,1,65]
 test_two_incomplete = B.pack [1,0]
-test_two_rest       = B.pack [66]
+test_two_rest       = B.pack [67]
 
 main = do
     AP.parseTest ZF.parser test_one_complete

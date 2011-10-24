@@ -15,16 +15,18 @@ import Control.Monad (guard)
 import qualified Data.ByteString as B
 import qualified Data.Attoparsec as AP
 
-data FrameState = FINAL | MORE | ERROR
-frame_state 0x00      = FINAL
-frame_state 0x01      = MORE
-instance Show FrameState where
-    show FINAL = "FINAL"
-    show MORE  = "MORE"
+data FrameCont = FINAL | MORE | BADCONT deriving Eq
+frame_cont 0x00      = FINAL
+frame_cont 0x01      = MORE
+frame_cont otherwise = BADCONT
+instance Show FrameCont where
+    show FINAL   = "FINAL"
+    show MORE    = "MORE"
+    show BADCONT = "BADCONT"
 
 parser = do
     frame_length <- AP.anyWord8
-    state_val    <- AP.anyWord8
-    guard(state_val == 0x00 || state_val == 0x01) AP.<?> "State must be either MORE or FINAL"
+    raw_cont     <- AP.anyWord8
+    guard((frame_cont raw_cont) /= BADCONT) AP.<?> "State must be either MORE or FINAL"
     body         <- AP.take (fromIntegral frame_length)
-    return (frame_length, frame_state state_val, body)
+    return (frame_length, frame_cont raw_cont, body)
