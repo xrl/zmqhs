@@ -11,6 +11,31 @@ Pure ZMQ. No FFI.
 
 http://hpaste.org/53004#a53006
 
+combinatorrent
+--------------
+
+    getAPMsg :: Int -> Parser Message
+    getAPMsg l = do
+        c <- A.anyWord8
+        case c of
+            0  -> return Choke
+            1  -> return Unchoke
+            2  -> return Interested
+            3  -> return NotInterested
+            4  -> (Have <$> apW32be)
+            5  -> (BitField <$> (A.take (l-1)))
+            6  -> (Request <$> apW32be <*> (Block <$> apW32be <*> apW32be))
+            7  -> (Piece <$> apW32be <*> apW32be <*> A.take (l - 9))
+            8  -> (Cancel <$> apW32be <*> (Block <$> apW32be <*> apW32be))
+            9  -> (Port . fromIntegral <$> apW16be)
+            0x0D -> (Suggest <$> apW32be)
+            0x0E -> return HaveAll
+            0x0F -> return HaveNone
+            0x10 -> (RejectRequest <$> apW32be <*> (Block <$> apW32be <*> apW32be))
+            0x11 -> (AllowedFast <$> apW32be)
+            20 -> (ExtendedMsg <$> A.anyWord8 <*> A.take (l - 2))
+            k  -> fail $ "Illegal parse, code: " ++ show k
+
 Contact
 -------
 
