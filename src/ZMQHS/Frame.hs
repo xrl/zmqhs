@@ -39,6 +39,11 @@ get_fc = do
 
 parser = do
     frame_length <- AP.anyWord8
-    case frame_length of
-        0x255      ->  return (Jumbo <$> AP.take 8, get_fc, AP.take (fromIntegral frame_length))
-        otherwise  ->  return (Small otherwise, get_fc, AP.take (fromIntegral frame_length))
+    frame_size <- case frame_length of
+        0xFF       ->  Jumbo <$> AP.take 8
+        otherwise  ->  return (Small otherwise)
+    fc <- get_fc
+    bs <- AP.take 8
+    return (frame_size, fc, bs)
+
+
