@@ -7,6 +7,7 @@ import qualified ZMQHS.Frame     as ZF
 test_one_complete   = B.pack [1,1,65]
 test_two_incomplete = B.pack [1,0]
 test_two_rest       = B.pack [67]
+test_three_complete = B.pack [0xFF,1,1,0,0,0,0,0,0,0,67]
 
 main = do
     AP.parseTest ZF.parser test_one_complete
@@ -16,3 +17,7 @@ main = do
                             AP.Done _ val        -> putStrLn ("Got val: " ++ show val)
                             AP.Partial more      -> putStrLn ("Need more")
                             AP.Fail dat ctxs msg -> putStrLn (show msg)
+    case (AP.parse ZF.parser test_three_complete) of
+    	AP.Done _ val -> putStrLn ("Got val " ++ show val)
+    	AP.Partial more -> putStrLn ("Moar plz")
+    	AP.Fail dat ctxs msg -> putStrLn (show msg)

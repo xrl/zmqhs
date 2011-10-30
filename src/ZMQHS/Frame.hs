@@ -16,6 +16,7 @@ import Control.Applicative hiding (empty)
 import           Data.Word (Word8, Word64)
 import qualified Data.Attoparsec as AP
 import qualified Data.Attoparsec.Binary as APB
+import Debug.Trace
 
 data FrameCont = FINAL | MORE | BADCONT
     deriving (Show, Eq)
@@ -33,11 +34,11 @@ get_fc = do
 
 parser = do
     frame_length <- AP.anyWord8
-    frame_size <- case frame_length of
-        0xFF       ->  Jumbo <$> APB.anyWord64be
-        otherwise  ->  return (Small otherwise)
     fc <- get_fc
+    frame_size <- case frame_length of
+        0xFF       ->  Jumbo <$> APB.anyWord64le
+        otherwise  ->  return (Small otherwise)
     bs <- case frame_size of
-        Jumbo len  -> AP.take (fromIntegral len)
+        Jumbo len  -> trace ("Jumbo len: " ++ (show $ len)) (AP.take $ fromIntegral len)
         Small len  -> AP.take (fromIntegral len)
     return (frame_size, fc, bs)
