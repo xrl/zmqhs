@@ -24,7 +24,7 @@ frame_cont 0x01      = MORE
 frame_cont otherwise = BADCONT
 
 data FrameSize = Small Word8 | Jumbo Word64
-    --deriving (Show)
+    deriving (Show)
 
 get_fc = do
     raw_cont <- AP.anyWord8
@@ -37,5 +37,7 @@ parser = do
         0xFF       ->  Jumbo <$> APB.anyWord64be
         otherwise  ->  return (Small otherwise)
     fc <- get_fc
-    bs <- AP.take 8
+    bs <- case frame_size of
+        Jumbo len  -> AP.take (fromIntegral len)
+        Small len  -> AP.take (fromIntegral len)
     return (frame_size, fc, bs)

@@ -51,7 +51,7 @@ Library
   Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
-  Build-depends: base, binary, bytestring, attoparsec
+  Build-depends: base, binary, bytestring, attoparsec, attoparsec-binary
   
   -- Modules not exported by this package.
   -- Other-modules:       
