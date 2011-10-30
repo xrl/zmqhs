@@ -48,6 +48,7 @@ Library
   Hs-Source-Dirs: src
   -- Modules exported by the library.
   Exposed-modules: ZMQHS.Frame
+  Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
   Build-depends: base, binary, bytestring, attoparsec
@@ -61,4 +62,3 @@ Library
 Executable test
   Build-depends: base, binary, bytestring, attoparsec, zmqhs
   Main-is: test/frame/TestParse.hs
-  Data-dir: src

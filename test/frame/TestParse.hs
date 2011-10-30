@@ -16,9 +16,3 @@ main = do
                             AP.Done _ val        -> putStrLn ("Got val: " ++ show val)
                             AP.Partial more      -> putStrLn ("Need more")
                             AP.Fail dat ctxs msg -> putStrLn (show msg)
-    
-    --case AP.parse ZF.parser test_data of
-    --  AP.Partial moar      -> putStrLn "Need more"
-    --  AP.Done bs retval    -> putStrLn $ show retval
-    --  AP.Fail dat ctxs msg -> putStrLn $ show msg
-    --where parser = ZF.parser
