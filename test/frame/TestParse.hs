@@ -7,7 +7,7 @@ import qualified ZMQHS.Frame     as ZF
 test_one_complete   = B.pack [1,1,65]
 test_two_incomplete = B.pack [1,0]
 test_two_rest       = B.pack [67]
-test_three_complete = B.pack [0xFF,1,1,0,0,0,0,0,0,0,67]
+test_three_complete = B.pack [0xFF,1,0,0,0,0,0,0,0,1,67]
 
 main = do
     AP.parseTest ZF.parser test_one_complete

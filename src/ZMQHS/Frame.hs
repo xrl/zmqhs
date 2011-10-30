@@ -24,21 +24,16 @@ frame_cont 0x00      = FINAL
 frame_cont 0x01      = MORE
 frame_cont otherwise = BADCONT
 
-data FrameSize = Small Word8 | Jumbo Word64
-    deriving (Show)
-
 get_fc = do
     raw_cont <- AP.anyWord8
     guard((frame_cont raw_cont) /= BADCONT) AP.<?> "State must be either MORE or FINAL"
     return raw_cont
 
 parser = do
-    frame_length <- AP.anyWord8
+    first_byte <- fromIntegral <$> AP.anyWord8
+    frame_size <- case first_byte of
+        0xFF ->  fromIntegral <$> APB.anyWord64be
+        _    ->  return first_byte
     fc <- get_fc
-    frame_size <- case frame_length of
-        0xFF       ->  Jumbo <$> APB.anyWord64le
-        otherwise  ->  return (Small otherwise)
-    bs <- case frame_size of
-        Jumbo len  -> trace ("Jumbo len: " ++ (show $ len)) (AP.take $ fromIntegral len)
-        Small len  -> AP.take (fromIntegral len)
-    return (frame_size, fc, bs)
+    body <- AP.take frame_size
+    return (frame_size, fc, body)
