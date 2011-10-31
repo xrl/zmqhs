@@ -25,8 +25,8 @@ frame_cont 0x01      = MORE
 frame_cont otherwise = BADCONT
 
 get_fc = do
-    raw_cont <- AP.anyWord8
-    guard((frame_cont raw_cont) /= BADCONT) AP.<?> "State must be either MORE or FINAL"
+    raw_cont <- frame_cont <$> AP.anyWord8
+    guard((raw_cont) /= BADCONT) AP.<?> "State must be either MORE or FINAL"
     return raw_cont
 
 parser = do
