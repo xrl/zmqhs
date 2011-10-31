@@ -45,7 +45,7 @@ Build-type:          Simple
 Cabal-version:       >=1.8
 
 Library
-  Hs-Source-Dirs: src
+  Hs-Source-Dirs: .
   -- Modules exported by the library.
   Exposed-modules: ZMQHS.Frame
   Extensions: ScopedTypeVariables
@@ -60,5 +60,5 @@ Library
   -- Build-tools:         
   
 Executable test
-  Build-depends: base, binary, bytestring, attoparsec, zmqhs
+  Build-depends: base, binary, bytestring, attoparsec, attoparsec-binary, zmqhs
   Main-is: test/frame/TestParse.hs
