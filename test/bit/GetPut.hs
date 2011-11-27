@@ -18,7 +18,6 @@ putter (byte_0, byte_1) = do
 main = do
   case (G.runGet getter some_data) of
     (one,two) -> putStrLn (show one ++ " " ++ show two) >>
-                 putStrLn "read it!" >>
                  case (P.runPut (putter (one,two))) of
                    a_str -> B.putStrLn some_data >>
                             B.putStrLn a_str
