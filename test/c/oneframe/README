@@ -1,0 +1,12 @@
+ZMQ Test
+========
+
+This directory is used to generate test programs against which ZMQHS can operate.
+
+Setup
+=====
+
+autoreconf -i
+./configure
+make
+./oneframe
