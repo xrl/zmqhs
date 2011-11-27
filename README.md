@@ -11,6 +11,34 @@ Pure ZMQ. No FFI.
 
 http://hpaste.org/53004#a53006
 
+ZMQ ABNF
+--------
+
+    zmtp        = *connection
+    
+    connection  = greeting content
+    greeting    = anonymous / identity
+    anonymous   = %x01 final
+    identity    = length final (%x01-ff) *OCTET
+    
+    message     = *more-frame final-frame
+    more-frame  = length more body
+    final-frame = length final body
+    length      = OCTET / (%xFF 8OCTET)
+    more        = %x01
+    final       = %x00
+    body        = *OCTET
+    
+    content     = *broadcast / *addressed / *neutral
+    
+    broadcast   = message
+    
+    addressed   = envelope message
+    envelope    = *more-frame delimiter
+    delimiter   = %x01 more
+    
+    neutral     = message
+
 combinatorrent
 --------------
 
