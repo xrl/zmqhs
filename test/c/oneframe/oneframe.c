@@ -94,6 +94,7 @@ int main(int argc, char **args){
 
   // Cleanup
   zmq_msg_close(&msg);
+  zmq_term(ctx);
 
   exit(EXIT_SUCCESS); 
 }
