@@ -64,6 +64,13 @@ combinatorrent
             20 -> (ExtendedMsg <$> A.anyWord8 <*> A.take (l - 2))
             k  -> fail $ "Illegal parse, code: " ++ show k
 
+Want Something That Works?
+--------------------------
+
+    A kind soul has already created a working FFI binding: zeromq-haskell
+
+    http://hackage.haskell.org/package/zeromq-haskell
+
 Contact
 -------
 
