@@ -40,13 +40,10 @@ main = do
 
   putStrLn ("Listening on port: " ++ servport)
   E.bracket (S.accept sock)
-            (closeSock)
+            (\(reqsock,_) -> S.sClose reqsock)
             (readAllDataNew (putStrLn . show))
 
 readAllDataNew callback (reqsock,reqaddr) = do
   a_bytestring <- SB.recv reqsock 2048
   CM.unless (B.null a_bytestring)
             (callback a_bytestring >> (readAllDataNew callback (reqsock,reqaddr)))
-
-closeSock (reqsock,reqaddr) = do
-  S.sClose reqsock
