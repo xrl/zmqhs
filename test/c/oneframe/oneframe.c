@@ -100,7 +100,10 @@ int main(int argc, char **args){
   // Cleanup
   printf("cleaning up msg...");
   zmq_msg_close(&msg);
-  puts(" done");
+  puts(" done!");
+
+  retval = zmq_close(sock);
+  assert(retval == 0);
 
   printf("shutting down zmq");
   zmq_term(ctx);
