@@ -23,6 +23,10 @@ int main(int argc, char **args){
   void *sock = zmq_socket(ctx,ZMQ_PAIR);
   assert(sock != NULL);
 
+  int linger_interval = 1;
+  retval = zmq_setsockopt(sock,ZMQ_LINGER,(void*)&linger_interval,sizeof(linger_interval));
+  assert(retval == 0);
+
   retval = zmq_connect(sock,"tcp://localhost:8765");
   // Switch statement because surprisingly ZMQ_PAIR does not
   // support UDP
