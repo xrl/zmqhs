@@ -17,11 +17,11 @@ import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString as SB
 import qualified Network.BSD     as BSD
 
---import qualified Data.Hex        as DH
-import Numeric as N
+import qualified Data.Hex        as DH
+import qualified Data.Char       as DC
+import qualified Numeric         as N
 
 servport = "8765"
---servaddr = "localhost"
 
 -- http://book.realworldhaskell.org/read/sockets-and-syslog.html
 main = do
@@ -41,7 +41,7 @@ main = do
   putStrLn ("Listening on port: " ++ servport)
   E.bracket (S.accept sock)
             (\(reqsock,_) -> S.sClose reqsock)
-            (readAllDataNew (putStrLn . show))
+            (readAllDataNew (putStrLn . show . (map (\x -> x " ")) . (map (N.showIntAtBase 2 DC.intToDigit)) . (map (fromEnum)) . show))
 
 readAllDataNew callback (reqsock,reqaddr) = do
   a_bytestring <- SB.recv reqsock 2048
