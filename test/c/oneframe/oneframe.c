@@ -102,12 +102,14 @@ int main(int argc, char **args){
   zmq_msg_close(&msg);
   puts(" done!");
 
+  printf("cleaning up sock...");
   retval = zmq_close(sock);
   assert(retval == 0);
+  puts(" done!");
 
-  printf("shutting down zmq");
+  printf("shutting down zmq...");
   zmq_term(ctx);
-  puts(" done");
+  puts(" done!");
 
   exit(EXIT_SUCCESS); 
 }
