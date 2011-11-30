@@ -9,6 +9,7 @@ import qualified Data.Attoparsec as AP
 import qualified Data.Binary.Get as G
 import qualified Data.Binary.Put as P
 
+import qualified Control.Monad as CM
 import Control.Applicative hiding (empty)
 import qualified Control.Exception.Base as E
 
@@ -44,13 +45,8 @@ main = do
 
 readAllDataNew callback (reqsock,reqaddr) = do
   a_bytestring <- SB.recv reqsock 2048
-  if B.null a_bytestring
-  then return ()
-  else callback a_bytestring
-
-  if B.null a_bytestring
-  then return ()
-  else readAllDataNew callback (reqsock,reqaddr)
+  CM.unless (B.null a_bytestring)
+            (callback a_bytestring >> (readAllDataNew callback (reqsock,reqaddr)))
 
 closeSock (reqsock,reqaddr) = do
   S.sClose reqsock
