@@ -2,11 +2,15 @@
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-import qualified Data.ByteString as B (pack)
-import qualified Data.Attoparsec as AP
 import qualified ZMQHS.Frame     as ZF
+
+import qualified Data.ByteString as B
+import qualified Data.Attoparsec as AP
 import qualified Data.Binary.Get as G
 import qualified Data.Binary.Put as P
+
+import Control.Applicative hiding (empty)
+import qualified Control.Exception.Base as E
 
 import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString as SB
@@ -34,19 +38,19 @@ main = do
   S.listen sock 1
 
   putStrLn ("Listening on port: " ++ servport)
-  procRequests sock prettyPrintZMTP
+  E.bracket (S.accept sock)
+            (closeSock)
+            (readAllDataNew (putStrLn . show))
 
-procRequests sock callback = do
-  putStrLn "Waiting for new connection"
-  (reqsock, reqaddr) <- S.accept sock
-  putStrLn "Handling new connection"
-  readAllData reqsock callback
+readAllDataNew callback (reqsock,reqaddr) = do
+  a_bytestring <- SB.recv reqsock 2048
+  if B.null a_bytestring
+  then return ()
+  else callback a_bytestring
 
-prettyPrintZMTP "" = return ()
-prettyPrintZMTP s  = putStrLn s
+  if B.null a_bytestring
+  then return ()
+  else readAllDataNew callback (reqsock,reqaddr)
 
-readAllData reqsock callback = do
-  putStrLn "reading some data"
-  a_bytestring       <- SB.recv reqsock 2048
-  callback $ show a_bytestring
-  readAllData reqsock callback
+closeSock (reqsock,reqaddr) = do
+  S.sClose reqsock
