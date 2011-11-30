@@ -89,12 +89,18 @@ int main(int argc, char **args){
         puts("zmq_send: errno default");
     }
     exit(EXIT_FAILURE);
+  } else {
+    puts("sent the message");
   }
-  puts("sent the message");
 
   // Cleanup
+  printf("cleaning up msg...");
   zmq_msg_close(&msg);
+  puts(" done");
+
+  printf("shutting down zmq");
   zmq_term(ctx);
+  puts(" done");
 
   exit(EXIT_SUCCESS); 
 }
