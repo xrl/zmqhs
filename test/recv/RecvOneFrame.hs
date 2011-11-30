@@ -12,6 +12,9 @@ import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString as SB
 import qualified Network.BSD     as BSD
 
+--import qualified Data.Hex        as DH
+import Numeric as N
+
 servport = "8765"
 --servaddr = "localhost"
 
@@ -31,9 +34,19 @@ main = do
   S.listen sock 1
 
   putStrLn ("Listening on port: " ++ servport)
-  procRequests sock (\x -> putStrLn (show x))
-  where
-    procRequests sock callback = do
-      (reqsock, reqaddr) <- S.accept sock
-      a_bytestring       <- SB.recv reqsock 2048
-      callback a_bytestring
+  procRequests sock prettyPrintZMTP
+
+procRequests sock callback = do
+  putStrLn "Waiting for new connection"
+  (reqsock, reqaddr) <- S.accept sock
+  putStrLn "Handling new connection"
+  readAllData reqsock callback
+
+prettyPrintZMTP "" = return ()
+prettyPrintZMTP s  = putStrLn s
+
+readAllData reqsock callback = do
+  putStrLn "reading some data"
+  a_bytestring       <- SB.recv reqsock 2048
+  callback $ show a_bytestring
+  readAllData reqsock callback
