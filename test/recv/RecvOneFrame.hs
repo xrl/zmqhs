@@ -41,9 +41,13 @@ main = do
   putStrLn ("Listening on port: " ++ servport)
   E.bracket (S.accept sock)
             (\(reqsock,_) -> S.sClose reqsock)
-            (readAllDataNew (putStrLn . show . (map (\x -> x " ")) . (map (N.showIntAtBase 2 DC.intToDigit)) . (map (fromEnum)) . show))
+            (readAllDataNew do_something)
 
 readAllDataNew callback (reqsock,reqaddr) = do
   a_bytestring <- SB.recv reqsock 2048
   CM.unless (B.null a_bytestring)
+            -- Do the callback with what we got, then keep going
             (callback a_bytestring >> (readAllDataNew callback (reqsock,reqaddr)))
+
+--do_something = putStrLn . show . B.unpack
+do_something = putStrLn . show . map (\x -> N.showIntAtBase 16 (DC.intToDigit) x "") . B.unpack
