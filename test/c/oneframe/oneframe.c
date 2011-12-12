@@ -7,7 +7,7 @@
 #include <zmq.h>
 #include <assert.h>
 
-#define MSG "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
+#define MSG "ASDFASDFASDFASDFASDFASDFASDF"
 void free_msg(void *data, void *hint);
 void send_msg(void* sock);
 void recv_msg(void* sock);
@@ -68,7 +68,7 @@ void recv_msg(void* sock){
   zmq_msg_t msg;
   zmq_msg_init(&msg);
 
-  retval = zmq_bind(sock,"tcp://127.0.0.1:8765");
+  retval = zmq_bind(sock,"tcp://0.0.0.0:7890");
   if(retval != 0){
     switch(errno){
       case EINVAL:
@@ -138,7 +138,7 @@ void recv_msg(void* sock){
 
 void send_msg(void* sock){
   int retval = 0;
-  retval = zmq_connect(sock,"tcp://127.0.0.1:8765");
+  retval = zmq_connect(sock,"tcp://184.106.107.229:7890");
   // Switch statement because surprisingly ZMQ_PAIR does not
   // support UDP
   if(retval != 0){

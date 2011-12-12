@@ -21,7 +21,7 @@ import qualified Data.Hex        as DH
 import qualified Data.Char       as DC
 import qualified Numeric         as N
 
-servport = "8765"
+servport = "7890"
 
 -- http://book.realworldhaskell.org/read/sockets-and-syslog.html
 main = do
