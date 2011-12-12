@@ -46,6 +46,8 @@ int main(int argc, char **args){
     exit(EXIT_FAILURE);
   }
 
+  sleep(1);
+
   printf("cleaning up sock...");
   retval = zmq_close(sock);
   assert(retval == 0);
@@ -55,7 +57,6 @@ int main(int argc, char **args){
   zmq_term(ctx);
   puts(" done!");
 
-  sleep(1);
   exit(EXIT_SUCCESS); 
 }
 
