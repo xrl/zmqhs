@@ -7,7 +7,7 @@ Test tool: a C app sends a short string in one message. The message is short so 
 
 The Haskell listener application creates a listener socket, binds it to a public port, and waits for incoming bytes. This is done using a bytestring socket interfacie -- it does a large read, 2048 bytes, larger than an MTU so probably unimportant. The bytestring is then passed to a callback. For now the callback just formats the bytes as hex. 
 
-Let's take some time to quantify the problem: I only ever read 2 bytes, 0x017E when I should expect a full frame with the payload "ASDFASDFASDFASDFASDFASDFASDF". What I actually expect is 0x011D and then the payload. So the bytes I read would not be valid if I had more data.
+Let's take some time to quantify the problem: I only ever read 2 bytes, 0x017E when I should expect a full frame with the payload "ASDFASDFASDFASDFASDFASDFASDF". What I actually expect is 0x011D and then the payload. So the bytes I read would not be valid even if my read returned more data.
 
 Time to compare wireshark output from C -> Haskell and C -> C.
 
@@ -210,4 +210,45 @@ C -> Haskell
     0020  6b e5 db 4b 1e d2 6d 06 cb a7 4e 68 3d 63 80 10   k..K..m...Nh=c..
     0030  ff ff 66 59 00 00 01 01 08 0a 38 b9 f8 05 71 e3   ..fY......8...q.
     0040  2d 04                                             -.
+
+Note to self: In the future skip the IP/TCP headers and skip straight to the payloads.
+
+An interpretation: Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- and it appears the opening handshake is not a compliant frame.
+
+Take a look at The C code's [PSH, ACK] (I'm not TCP expert, PSH sounds like a TCP packet with application payload). You can use either C -> C or C -> Haskell.
+
+TShark is report the opening ZMQ packet as 2 bytes with the hex values of 01 7e. But these are not a compliant packet per the spec's ABNF:
+
+    more-frame  = length more body
+    final-frame = length final body
+    length      = OCTET / (%xFF 8OCTET)
+    more        = %x01
+    final       = %x00
+    body        = *OCTET
+
+A length of 1 is fine but it's value does not follow the spec. This is a control-data only packet with a mystery value. What does 0x7E mean?
+
+    0x7E in binary: 0x01111110
+
+Very weird! Since the spec does not speak to this my only hope is to dig through the code. A quick grep did not reveal the results I wanted. And since I don't feel like performing a code-dive just yet I'm going to fake it til I make it -- we have working C code so let's snoop in on the handshake.
+
+Here's what the C programs exchange:
+
+    Send    [0x01, 0x7E]
+    Respond [0x01, 0x7E]
+
+And when I modify my handshake code I get more progress, I actually get a deluge of information!
+
+Here's what the C -> Haskell programs exchange:
+
+    Send    [0x01, 0x7E]
+    Respond [0x01, 0x7E]
+    Send    [0x1D, 0x7E, 0x41, 0x53, 0x44,
+             0x46, 0x41, 0x53, 0x44, 0x46,
+             0x41, 0x53, 0x44, 0x46, 0x41,
+             0x53, 0x44, 0x46, 0x41, 0x53,
+             0x44, 0x46, 0x41, 0x53, 0x44,
+             0x46, 0x41, 0x53, 0x44, 0x46]
+
+Success. A quick/dirty reverse engineering got me further along.
 </markdown>
