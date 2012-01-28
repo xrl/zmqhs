@@ -213,7 +213,7 @@ C -> Haskell
 
 Note to self: In the future skip the IP/TCP headers and skip straight to the payloads.
 
-An interpretation: Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- and it appears the opening handshake is not a compliant frame.
+One interpretation: Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- and it appears the opening handshake is not a compliant frame.
 
 Take a look at The C code's [PSH, ACK] (I'm not TCP expert, PSH sounds like a TCP packet with application payload). You can use either C -> C or C -> Haskell.
 
@@ -226,11 +226,11 @@ TShark is report the opening ZMQ packet as 2 bytes with the hex values of 01 7e.
     final       = %x00
     body        = *OCTET
 
-A length of 1 is fine but it's value does not follow the spec. This is a control-data only packet with a mystery value. What does 0x7E mean?
+A length of 1 is fine but the more/final value does not follow the spec. I expect the value to be either 0x01 OR 0x00, all others should be considered 'weird'. Perhaps the more/final field is actually a bit vector and I really want the least significant bit? What does 0x7E mean?
 
     0x7E in binary: 0x01111110
 
-Very weird! Since the spec does not speak to this my only hope is to dig through the code. A quick grep did not reveal the results I wanted. And since I don't feel like performing a code-dive just yet I'm going to fake it til I make it -- we have working C code so let's snoop in on the handshake.
+Very weird! Since the spec does not speak to this my only hope is to dig through C++ the code. A quick grep did not reveal the results I wanted. And since I don't feel like performing a code-dive just yet I'm going to fake it til I make it -- we have working C code so let's snoop in on the handshake.
 
 Here's what the C programs exchange:
 
@@ -251,4 +251,25 @@ Here's what the C -> Haskell programs exchange:
              0x46, 0x41, 0x53, 0x44, 0x46]
 
 Success. A quick/dirty reverse engineering got me further along.
+
+Also of note, when you read the length, it includes all following data including the 1 byte header. Without that correction the parser is never satisfied. Here's the quick fix to the parser:
+
+    parser = do
+        first_byte    <- fromIntegral <$> AP.anyWord8
+        rest_of_frame <- case first_byte of
+            0xFF ->  fromIntegral <$> APB.anyWord64be
+            _    ->  return first_byte
+        fc <- get_fc
+        let payload_size = rest_of_frame - 1  -- ding ding ding
+        payload <- AP.take payload_size
+        return (payload_size, fc, payload)
+
+And now I can read the incoming handshake AND the following response with the payload. Here's what attoparsec thinks they look like by using parseTest:
+
+    Handshake:
+        Done "" (0,MYSTERIOUS,"")
+    Follow-up payload:
+        Done "" (28,MYSTERIOUS,"ASDFASDFASDFASDFASDFASDFASDF")
+
+As you can see, the repeating string sent from the C program is successfully received on the Haskell side of things. Hope you found this enlightening: we used wireshark to discover misconceptions/ambiguities from the ZMQ framing ABNF and fixed the ZMQHS code to get things going.
 </markdown>
