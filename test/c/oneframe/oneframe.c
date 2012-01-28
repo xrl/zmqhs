@@ -139,7 +139,7 @@ void recv_msg(void* sock){
 
 void send_msg(void* sock){
   int retval = 0;
-  retval = zmq_connect(sock,"tcp://184.106.107.229:7890");
+  retval = zmq_connect(sock,"tcp://0.0.0.0:7890");
   // Switch statement because surprisingly ZMQ_PAIR does not
   // support UDP
   if(retval != 0){
