@@ -57,7 +57,7 @@ generator header body = do
     let body_len   = B.length body
     let len = header_len + body_len
     case len of
-        x | x < 256 -> P.putWord8    $ fromIntegral len
+        x | x < 255 -> P.putWord8    $ fromIntegral len
         otherwise   -> P.putWord8 0xFF >>
                       (P.putWord64be $ fromIntegral len)
     P.putWord8 header
