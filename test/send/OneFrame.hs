@@ -24,19 +24,13 @@ import qualified Numeric         as N
 
 import qualified System.Exit     as SE
 
-servaddr = "0.0.0.0"
-servport = "7890"
-opening_salvo = B.pack [0x01, 0x7E]
-a_message     = B.pack [0x02, 0x7E, 0x65]
-
-
 -- http://book.realworldhaskell.org/read/sockets-and-syslog.html
 main = do
-  E.bracket (open_connection)
+  E.bracket (open_connection "0.0.0.0" "7890")
           (\sock -> S.sClose sock)
           (send_and_read)
 
-open_connection = do
+open_connection servaddr servport = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) S.Stream S.defaultProtocol
@@ -48,8 +42,9 @@ open_connection = do
   return sock
 
 send_and_read sock = do
+  let opening_salvo = B.pack [0x01, 0x7E]
   LSB.send sock opening_salvo
-  stuff <- LSB.recv sock 1024
-  ZF.debug_it stuff
+  --stuff <- LSB.recv sock 1024
+  --ZF.debug_it stuff
   let outgoing_data = ZF.payload_response (B.pack [65,66,67,68,69])
   LSB.send sock outgoing_data
