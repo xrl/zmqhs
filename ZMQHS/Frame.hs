@@ -50,8 +50,8 @@ parser = do
     payload <- AP.take payload_size
     return (payload_size, fc, payload)
 
-payload_response a_byte = do
-    P.runPut (generator 0x7E a_byte)
+payload_response payload = do
+    P.runPut (generator 0x7E payload)
 generator header body = do
     let header_len = 1
     let body_len   = B.length body
