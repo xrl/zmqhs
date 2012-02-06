@@ -6,10 +6,40 @@ It's time to bang on the networking aspect and interact with real ZMQ frames. I 
 
 This style of protocol debugging can be considered 'black box'. I'm teasing out meaning from the C implementation based solely on its input/output behavior. Later on I will look at the libzmq code to see if I'm close!
 
+ZMQ Spec Rundown
+==================
+
+This was covered in a previous post ( http://xrl.tureus.com/haskell-and-binary-streams-parsing-with-field ), but here's what ZMQ frames look like:
+
+    more-frame  = length more body
+    final-frame = length final body
+    length      = OCTET / (%xFF 8OCTET)
+    more        = %x01
+    final       = %x00
+    body        = *OCTET
+
+Go here for the full spec: http://rfc.zeromq.org/spec:13
+
+And here's the Haskell parser:
+
+    parser = do
+        first_byte    <- fromIntegral <$> AP.anyWord8
+        rest_of_frame <- case first_byte of
+            0xFF ->  fromIntegral <$> APB.anyWord64be
+            _    ->  return first_byte
+        fc <- get_fc
+        let payload_size = rest_of_frame
+        payload <- AP.take payload_size
+        return (payload_size, fc, payload)
+
+Maybe you already see the error I'm about to track down?
+
 Problem Overview
 ==================
 
 The whole reason to start this exercise is that the data sent by libzmq did not match the informal spec. The pure C version has no problem talking to itself but I get too few, unexpected bytes in the Haskell network listener.
+
+The first read off the socket only returns 2 bytes, 0x017E, while I expect 0x011D followed by the payload "ASDFASDFASDFASDFASDFASDFASDF".
 
 Procedure
 ==================
@@ -17,8 +47,6 @@ Procedure
 The C application sends a human-readable piece of data in one message. The message is short so I can focus on single-frame semantics.
 
 The Haskell listener application creates a socket, binds it to a public port, and waits for incoming bytes. This is done using a bytestring socket interface -- it does a large read, 2048 bytes. The bytestring is then passed to a callback. For now the callback just formats the bytes as hex. 
-
-Let's take some time to quantify the problem: I only ever read 2 bytes, 0x017E when I should expect a full frame with the payload "ASDFASDFASDFASDFASDFASDFASDF". What I actually expect is 0x011D and then the payload. So the bytes I read would not be valid even if my read returned more data.
 
 What I'm Thinking
 ===================
@@ -236,8 +264,6 @@ Note to self: In the future skip the IP/TCP headers and skip straight to the pay
 Some Interpretation
 ===================
 
-Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- maybe they should!
-
 Take a look at The C code's [PSH, ACK] (I'm not TCP expert, PSH sounds like a TCP packet with application payload). You can use either C -> C or C -> Haskell.
 
 TShark reports the opening ZMQ packet as 2 bytes with the hex values of 01 7e. Upon further review, these are not a compliant frames per the spec's ABNF:
@@ -265,7 +291,7 @@ With that sample exchange in mind, a faked handshake will indeed yield progress,
 Here's what the C -> Haskell programs exchange:
 
     Send    [0x01, 0x7E]
-    Respond [0x01, 0x7E]
+    Receive [0x01, 0x7E]
     Send    [0x1D, 0x7E, 0x41, 0x53, 0x44,
              0x46, 0x41, 0x53, 0x44, 0x46,
              0x41, 0x53, 0x44, 0x46, 0x41,
@@ -276,9 +302,9 @@ Here's what the C -> Haskell programs exchange:
 Success
 ==================
 
-A quick/dirty reverse engineering got me further along.
+A quick/dirty reverse engineering got me further along. I faked the handshake and the subsequent read had all the good stuff I was expecting.
 
-Also of note, when you read the length, it includes all data including the 1 byte header. Without this observation the parser would always be one byte short. Here's the quick fix to the parser:
+Also of note, the length field encompasses the 1 byte header field. Without this observation the parser would always be one byte short. Here's the quick fix to the parser:
 
     parser = do
         first_byte    <- fromIntegral <$> AP.anyWord8
@@ -299,7 +325,11 @@ And now I can read the incoming handshake AND the following response with the pa
     Follow-up payload:
         Done "" (28,MYSTERIOUS,"ASDFASDFASDFASDFASDFASDFASDF")
 
-As you can see, the repeating string sent from the C program is successfully received on the Haskell side of things. Hope you found this enlightening: we used wireshark to discover misconceptions/ambiguities from the ZMQ framing ABNF and fixed the ZMQHS code to get things going.
+As you can see, the repeating string sent from the C program is successfully received on the Haskell side of things.
+
+It's unfortunate that the ZMQ spec is not fully cooked. The spec will really show its legs when there are multiple implementations interoperating. Once we perform the handshake we're good to go but it's unfortonate to either reverse engineer or code dive to figure it out. Also, it'd be great to see some explanation from the spec authors as I'm a little confused why the handshake is even necessary.
+
+Hope you found this enlightening! Next time you're wondering what's flying across the wire you should consider tshark and friends.
 
 References
 ============
@@ -307,4 +337,6 @@ References
   http://rfc.zeromq.org/spec:13
 
   https://github.com/xrl/zmqhs
+
+  http://xrl.tureus.com/haskell-and-binary-streams-parsing-with-field
 </markdown>
