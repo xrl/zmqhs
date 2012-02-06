@@ -36,16 +36,17 @@ frame_cont otherwise = BADCONT
 
 get_fc = do
     raw_cont <- frame_cont <$> AP.anyWord8
-    guard((raw_cont) /= BADCONT) AP.<?> "State must be either MORE or FINAL"
+    guard ((raw_cont) /= BADCONT)
+        AP.<?> "State must be either MORE or FINAL"
     return raw_cont
 
 parser = do
-    first_byte    <- fromIntegral <$> AP.anyWord8
-    rest_of_frame <- case first_byte of
+    first_byte <- fromIntegral <$> AP.anyWord8
+    frame_size <- case first_byte of
         0xFF ->  fromIntegral <$> APB.anyWord64be
         _    ->  return first_byte
     fc <- get_fc
-    let payload_size = rest_of_frame - 1
+    let payload_size = frame_size - 1
     payload <- AP.take payload_size
     return (payload_size, fc, payload)
 

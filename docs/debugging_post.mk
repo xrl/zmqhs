@@ -1,15 +1,33 @@
 <markdown>
-It's time to bang on the networking aspect and interact with real ZMQ frames. I have written a pure C test app against libzmq and implemented a one-way transmission test. To gather the wire data I am using tshark, the command line version of the wireshark network packet sniffer.
+Black-Box Reverse Engineering ZMQHS
+==================
 
-Problem overview: the pure C version has no problem talking to itself but I get too few, unexpected bytes in the Haskell network listener.
+It's time to bang on the networking aspect and interact with real ZMQ frames. I have written a pure C test app against libzmq to perform a transmission test. My Haskell code will attempt to send data and I will snoop in on the transmission using a third party tool. To gather the wire data I am using tshark, the command line version of the wireshark network packet sniffer.
 
-Test tool: a C app sends a short string in one message. The message is short so I can focus on single-frame semantics. Also of note, I explicitly use ZMQ_PAIR to avoid any complicated behavior. The documentation indicates ZMQ_PAIR is experimental! Should have seen that before I started using it. But let's continue with some network debugging.
+This style of protocol debugging can be considered 'black box'. I'm teasing out meaning from the C implementation based solely on its input/output behavior. Later on I will look at the libzmq code to see if I'm close!
 
-The Haskell listener application creates a listener socket, binds it to a public port, and waits for incoming bytes. This is done using a bytestring socket interfacie -- it does a large read, 2048 bytes, larger than an MTU so probably unimportant. The bytestring is then passed to a callback. For now the callback just formats the bytes as hex. 
+Problem Overview
+==================
+
+The whole reason to start this exercise is that the data sent by libzmq did not match the informal spec. The pure C version has no problem talking to itself but I get too few, unexpected bytes in the Haskell network listener.
+
+Procedure
+==================
+
+The C application sends a human-readable piece of data in one message. The message is short so I can focus on single-frame semantics.
+
+The Haskell listener application creates a socket, binds it to a public port, and waits for incoming bytes. This is done using a bytestring socket interface -- it does a large read, 2048 bytes. The bytestring is then passed to a callback. For now the callback just formats the bytes as hex. 
 
 Let's take some time to quantify the problem: I only ever read 2 bytes, 0x017E when I should expect a full frame with the payload "ASDFASDFASDFASDFASDFASDFASDF". What I actually expect is 0x011D and then the payload. So the bytes I read would not be valid even if my read returned more data.
 
-Time to compare wireshark output from C -> Haskell and C -> C.
+What I'm Thinking
+===================
+
+It's good to talk expectations -- see if my intuition is somewhat close. First, I think the 'incomplete' first frame indicates there is some ZMQ handshake/negotiation underway. The simplicity of the ZMQ spec would indicate a handshake is unnecessary but I have seen that ZMQ supports identity-based transport. This could be a back-and-forth to support identity.
+
+And second, maybe it's OK to send a header-only frame. Receiving the frame with zero body length is for control purposes.
+
+Without further ado, let's look at some packet dumps. In the next few sections I will compare wireshark output from C -> Haskell and C -> C.
 
 C -> Haskell
 ------------
@@ -41,9 +59,10 @@ C -> C
     4367.163981 184.106.107.229 -> 99.174.250.39 TCP 7890 > 55908 [FIN, ACK] Seq=3 Ack=34 Win=5888 Len=0 TSV=1910563252 TSER=951696737
     4367.239089 99.174.250.39 -> 184.106.107.229 TCP 55908 > 7890 [ACK] Seq=34 Ack=4 Win=524280 Len=0 TSV=951696737 TSER=1910563252
 
-It looks like there are more exchanges going on in the C version (7 exchanges for C -> Haskell and 12 for C -> C). My intuition says there is an application level control protocol I am missing. Perhaps the documentation is not the whole picture? Now I need to view some hex dumps of those transmissions.
+It looks like there are more exchanges going on in the C version (7 exchanges for C -> Haskell and 12 for C -> C). Perhaps the documentation is not the whole picture? Now I need to view some hex dumps of those transmissions.
 
 C -> C (detailed)
+---------------
 
 Super long dump:
 
@@ -146,6 +165,7 @@ Super long dump:
     0040  39 6f                                             9o
 
 C -> Haskell
+----------------
 
     1278.780035 99.174.250.39 -> 184.106.107.229 TCP 56139 > 7890 [SYN] Seq=0 Win=65535 Len=0 MSS=1460 WS=3 TSV=951711736 TSER=0
     
@@ -213,11 +233,14 @@ C -> Haskell
 
 Note to self: In the future skip the IP/TCP headers and skip straight to the payloads.
 
-One interpretation: Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- and it appears the opening handshake is not a compliant frame.
+Some Interpretation
+===================
+
+Obviously, the ZMQ spec is not fully cooked. They don't put the connection semantics in to the doc -- maybe they should!
 
 Take a look at The C code's [PSH, ACK] (I'm not TCP expert, PSH sounds like a TCP packet with application payload). You can use either C -> C or C -> Haskell.
 
-TShark is report the opening ZMQ packet as 2 bytes with the hex values of 01 7e. But these are not a compliant packet per the spec's ABNF:
+TShark reports the opening ZMQ packet as 2 bytes with the hex values of 01 7e. Upon further review, these are not a compliant frames per the spec's ABNF:
 
     more-frame  = length more body
     final-frame = length final body
@@ -237,7 +260,7 @@ Here's what the C programs exchange:
     Send    [0x01, 0x7E]
     Respond [0x01, 0x7E]
 
-And when I modify my handshake code I get more progress, I actually get a deluge of information!
+With that sample exchange in mind, a faked handshake will indeed yield progress, I actually get a deluge of information!
 
 Here's what the C -> Haskell programs exchange:
 
@@ -250,9 +273,12 @@ Here's what the C -> Haskell programs exchange:
              0x44, 0x46, 0x41, 0x53, 0x44,
              0x46, 0x41, 0x53, 0x44, 0x46]
 
-Success. A quick/dirty reverse engineering got me further along.
+Success
+==================
 
-Also of note, when you read the length, it includes all following data including the 1 byte header. Without that correction the parser is never satisfied. Here's the quick fix to the parser:
+A quick/dirty reverse engineering got me further along.
+
+Also of note, when you read the length, it includes all data including the 1 byte header. Without this observation the parser would always be one byte short. Here's the quick fix to the parser:
 
     parser = do
         first_byte    <- fromIntegral <$> AP.anyWord8
@@ -266,10 +292,19 @@ Also of note, when you read the length, it includes all following data including
 
 And now I can read the incoming handshake AND the following response with the payload. Here's what attoparsec thinks they look like by using parseTest:
 
+    Tuple interpretation:
+        (len,control,data)
     Handshake:
         Done "" (0,MYSTERIOUS,"")
     Follow-up payload:
         Done "" (28,MYSTERIOUS,"ASDFASDFASDFASDFASDFASDFASDF")
 
 As you can see, the repeating string sent from the C program is successfully received on the Haskell side of things. Hope you found this enlightening: we used wireshark to discover misconceptions/ambiguities from the ZMQ framing ABNF and fixed the ZMQHS code to get things going.
+
+References
+============
+
+  http://rfc.zeromq.org/spec:13
+
+  https://github.com/xrl/zmqhs
 </markdown>

@@ -17,7 +17,6 @@ import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString as SB
 import qualified Network.Socket.ByteString.Lazy as LSB
 import qualified Network.BSD     as BSD
---import qualified System.IO       as SIO
 
 import qualified Data.Hex        as DH
 import qualified Data.Char       as DC
