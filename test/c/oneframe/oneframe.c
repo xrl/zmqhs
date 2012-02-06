@@ -37,9 +37,9 @@ int main(int argc, char **args){
                           sizeof(linger_interval));
   assert(retval == 0);
 
-  if(strcmp(args[1],"send") == 0){
+  if(strncmp(args[1],"send",4) == 0){
     send_msg(sock);
-  } else if(strcmp(args[1],"recv") == 0){
+  } else if(strncmp(args[1],"recv",4) == 0){
     recv_msg(sock);
   } else {
     puts("oneframe send OR oneframe recv");

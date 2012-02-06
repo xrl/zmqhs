@@ -18,7 +18,6 @@ import qualified Network.Socket.ByteString as SB
 import qualified Network.Socket.ByteString.Lazy as LSB
 import qualified Network.BSD     as BSD
 
-import qualified Data.Hex        as DH
 import qualified Data.Char       as DC
 import qualified Numeric         as N
 
@@ -50,9 +49,5 @@ readAllDataNew callback (reqsock,reqaddr) = do
             -- Do the callback with what we got, then keep going
             (callback a_bytestring reqsock >> (readAllDataNew callback (reqsock,reqaddr)))
 
---do_something = putStrLn . show . B.unpack
---do_something = putStrLn . show . map (\x -> N.showIntAtBase 16 (DC.intToDigit) x "") . B.unpack
---do_something = putStrLn . concat . map (flip N.showHex "") . B.unpack
 do_something str sock = (debug_it str) >> (fake_handle sock)
-debug_it              = putStrLn . concat . map (flip N.showHex " ") . B.unpack
 fake_handle reqsock   = LSB.send reqsock (ZF.handshake_response)

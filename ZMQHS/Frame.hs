@@ -19,6 +19,14 @@ import qualified Data.Attoparsec.Binary as APB
 import qualified Data.Binary.Put as P
 import Debug.Trace
 
+import qualified Data.Hex             as DH
+import qualified Data.ByteString.Lazy as B
+import qualified Numeric              as N
+
+-- include/zmq.h #define, merge all flags
+continuation_flag = 0x01
+
+
 data FrameCont = FINAL | MORE | MYSTERIOUS | BADCONT
     deriving (Show, Eq)
 frame_cont 0x00      = FINAL
@@ -41,19 +49,17 @@ parser = do
     payload <- AP.take payload_size
     return (payload_size, fc, payload)
 
-handshake_response_generator = do
-    P.putWord8 0x01
-    P.putWord8 0x7E
-handshake_response = do
-    P.runPut handshake_response_generator
+payload_response a_byte = do
+    P.runPut (generator 0x7E a_byte)
+generator header body = do
+    let header_len = 1
+    let body_len   = B.length body
+    let len = header_len + body_len
+    case len of
+        x | x < 256 -> P.putWord8    $ fromIntegral len
+        otherwise   -> P.putWord8 0xFF >>
+                      (P.putWord64be $ fromIntegral len)
+    P.putWord8 header
+    P.putLazyByteString body
 
---generator (byte:[]) = do
---    P.putWord8 byte
---generator bytes =
---[(P.putWord8)] `ap` bytes
---liftM (P.putWord8) bytes
---mapM (P.putWord8) bytes
---sequence_ (P.putWord8) bytes
---P.putWord8 =<< bytes
---P.putWord8 byte0 >>
---P.putWord8 byte1
+debug_it = putStrLn . concat . map (flip N.showHex " ") . B.unpack
