@@ -105,21 +105,48 @@ frameParser = do
 payload_response :: B.ByteString -> B.ByteString
 payload_response = P.runPut . generator 0x7E
 
-structured_response = P.runPut . msgGen
+structured_response :: Message -> B.ByteString
+structured_response = P.runPut . putMessage
 
-msgGen :: Message -> P.PutM ()
-msgGen (Message id chunks) =  do
+putMessage :: Message -> P.Put
+putMessage (Message identity chunks) =  do
+  putIdentity identity 
+  let len = length chunks
+  forM_ (take (len-1) chunks) $ \chunk -> do
+    putLength (BS.length chunk + 1)
+    putMore
+    P.putByteString chunk
+  -- expanded for clarity
+  let lastchunk = last chunks
+  putLength   (BS.length lastchunk + 1)
+  putFinal
+  P.putByteString lastchunk
+
+putIdentity :: Identity -> P.PutM ()
+putIdentity Anonymous = P.putWord8 0x1 >> P.putWord8 0x0
+putIdentity (Named str) = do
+  putLength (BS.length str + 1)
+  putFinal
+  P.putByteString str
   
-  undefined
+putMore :: P.Put
+putMore = P.putWord8 0x1
 
-generator :: Word8 -> B.ByteString -> P.PutM ()
+putFinal :: P.Put
+putFinal = P.putWord8 0x0  
+
+putLength :: Integral a => a -> P.Put
+putLength len
+ | len < 255 = P.putWord8    $ fromIntegral len
+ | otherwise = P.putWord8 0xFF >> (P.putWord64be $ fromIntegral len)
+
+
+generator :: Word8 -> B.ByteString -> P.Put
 generator header body = do
     let header_len = 1
     let body_len   = B.length body
     let len = header_len + body_len
-    if len < 255
-      then P.putWord8    $ fromIntegral len
-      else P.putWord8 0xFF >> (P.putWord64be $ fromIntegral len)
+    putLength len    
     P.putWord8 header
     P.putLazyByteString body
 
