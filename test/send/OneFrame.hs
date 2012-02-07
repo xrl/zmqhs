@@ -1,6 +1,6 @@
 #!/usr/bin/env runhaskell
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings #-}
 
 import qualified ZMQHS.Frame     as ZF
 
@@ -9,6 +9,7 @@ import qualified Data.Attoparsec      as AP
 import qualified Data.Binary.Get      as G
 import qualified Data.Binary.Put      as P
 import Data.Int
+import Data.Char
 
 import qualified Control.Monad as CM
 import Control.Applicative hiding (empty)
@@ -52,5 +53,5 @@ send_and_read sock = do
   LSB.send sock opening_salvo
   --stuff <- LSB.recv sock 1024
   --ZF.debug_it stuff
-  let outgoing_data = ZF.payload_response (B.pack [65,66,67,68,69])
+  let outgoing_data = ZF.payload_response "ABCDE"
   LSB.send sock outgoing_data
