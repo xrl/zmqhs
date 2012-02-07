@@ -7,22 +7,31 @@
 #include <zmq.h>
 #include <assert.h>
 
+#include <getopt.h>
+
 #define MSG "ASDFASDFASDFASDFASDFASDFASDF"
+static char* version = "0.1.0";
 void free_msg(void *data, void *hint);
 void send_msg(void* sock);
 void recv_msg(void* sock);
 
-/**
- * This sample program will setup
- * the full ZMQ API, send out a message
- * with the content DEADBEEF and exit
- * with EXIT_SUCCESS.
-**/
+struct operation {
+  enum {MODE_SEND, MODE_RECV, MODE_UNSET} mode;
+  int parts;
+  int size;
+} operation;
+static void set_default_operation_values(){
+  operation.mode  = MODE_UNSET;
+  operation.parts = 1;
+  operation.size  = 5;
+}
+
+void parse_arguments(int argc, char**args);
+
 int main(int argc, char **args){
-  if(argc != 2){
-    puts("Usage: oneframe send OR oneframe recv");
-    exit(EXIT_FAILURE);
-  }
+  parse_arguments(argc,args);
+  exit(EXIT_FAILURE);
+
   int retval;
 
   void *ctx = zmq_init(1);
@@ -214,4 +223,82 @@ void send_msg(void* sock){
   printf("cleaning up msg...");
   zmq_msg_close(&msg);
   puts(" done!");
+}
+
+void display_usage(){
+  printf("The ZMQ Blaster, version %s\n",version);
+  puts("usage");
+  puts(" --mode send       : Send data");
+  puts(" --mode recv       : Receive data");
+  puts(" --parts numparts  : Send a message with numparts frames");
+  puts(" --size size       : Size of a frame");
+  puts(" --help            : This usage information");
+}
+void parse_arguments(int argc, char **args){
+  int retval = 0;
+  int option_index = 0;
+  int c = 0;
+  set_default_operation_values();
+  static struct option long_options[] = {
+    {"mode",  required_argument,    0, 'm'},
+    {"parts", required_argument,    0, 'p'},
+    {"size",  required_argument,    0, 's'},
+    {"help",  no_argument,          0, 'h'},
+    {0, 0, 0, 0}
+  };
+  while(1){
+    c = getopt_long(argc, args, "m:p:s:h?",
+                    long_options, &option_index);
+    if(c == -1)
+      break;
+    switch(c){
+      case '?':
+      case 'h':
+        display_usage();
+        exit(EXIT_SUCCESS);
+        break;
+      case 'm':
+        if(operation.mode != MODE_UNSET){
+          display_usage();
+          fprintf(stderr,"ERROR: You can only specify mode once. Exiting.\n");
+          display_usage();
+          exit(EXIT_FAILURE);
+        } else {
+          if(strncmp("send",optarg,4) == 0){
+            operation.mode = MODE_SEND;
+          } else if (strncmp("recv",optarg,4) == 0){
+            operation.mode = MODE_RECV;
+          } else {
+            fprintf(stderr,"ERROR: '%s' is an unsupported mode\n",optarg);
+            display_usage();
+            exit(EXIT_FAILURE);
+          }
+        }
+        break;
+      case 'p':
+        retval = sscanf(optarg,"%d",&(operation.parts));
+        if(retval < 1){
+          fprintf(stderr,"ERROR: Could not parse parts. Must be an unsigned decimal\n");
+          display_usage();
+          exit(EXIT_FAILURE);
+        } else if(operation.parts < 1){
+          fprintf(stderr,"ERROR: %d is invalid. Parts must be greater than 0\n",operation.parts);
+          display_usage();
+          exit(EXIT_FAILURE);
+        }
+        break;
+      case 's':
+        retval = sscanf(optarg,"%d",&(operation.size));
+        if(retval < 1){
+          fprintf(stderr,"ERROR: Could not parse size. Must be an unsigned decimal\n");
+          exit(EXIT_FAILURE);
+        } else if(operation.size < 1){
+          fprintf(stderr,"ERROR: %d is invalid. Size must be greater than 0\n",operation.size);
+          exit(EXIT_FAILURE);
+        }
+        break;
+      default:
+        puts("Unknown option");
+    }
+  }
 }
