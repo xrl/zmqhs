@@ -3,6 +3,6 @@ AM_LDFLAGS=-lzmq
 
 CC=clang
 
-bin_PROGRAMS=oneframe
+bin_PROGRAMS=blaster
 
-oneframe_SOURCES=oneframe.c
+blaster_SOURCES=blaster.c

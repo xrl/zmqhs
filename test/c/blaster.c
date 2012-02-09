@@ -1,3 +1,13 @@
+/**
+ * ZMQ Blaster
+ * Author: Xavier Lange <xrlange@gmail.com>
+ *
+ * Description: A utility for banging on any
+ * zeromq implementation. Provides options
+ * for sending varying sized messages with
+ * user-defined number of frames.
+**/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,14 +19,16 @@
 
 #include <getopt.h>
 
-#define MSG "ASDFASDFASDFASDFASDFASDFASDF"
 static char* version = "0.1.0";
+
 void free_msg(void *data, void *hint);
 void send_msg(void* sock, int parts, int size);
 void recv_msg(void* sock);
 
 struct operation {
   enum {MODE_SEND, MODE_RECV, MODE_UNSET} mode;
+  char* destination;
+  int interval;
   int socket_type;
   int parts;
   int size;
@@ -24,11 +36,14 @@ struct operation {
 static void set_default_operation_values(){
   operation.mode        = MODE_UNSET;
   operation.socket_type = ZMQ_PAIR;
+  operation.destination = "tcp://0.0.0.0:7890";
   operation.parts = 1;
   operation.size  = 5;
+  operation.interval = 0;
 }
 
 void parse_arguments(int argc, char**args);
+void connect_socket(void* sock, char* target);
 
 int main(int argc, char **args){
   parse_arguments(argc,args);
@@ -49,10 +64,11 @@ int main(int argc, char **args){
 
   switch(operation.mode){
     case MODE_SEND:
+      connect_socket(sock,operation.destination);
       send_msg(sock,operation.parts,operation.size);
       break;
     case MODE_RECV:
-      printf("recv mode!");
+      recv_msg(sock);
       break;
     case MODE_UNSET:
       printf("bad mode!");
@@ -82,7 +98,7 @@ void recv_msg(void* sock){
   zmq_msg_t msg;
   zmq_msg_init(&msg);
 
-  retval = zmq_bind(sock,"tcp://0.0.0.0:7890");
+  retval = zmq_bind(sock,operation.destination);
   if(retval != 0){
     switch(errno){
       case EINVAL:
@@ -150,9 +166,9 @@ void recv_msg(void* sock){
   zmq_msg_close(&msg);
 }
 
-void send_msg(void* sock, int parts, int size){
+void connect_socket(void* sock, char* target){
   int retval = 0;
-  retval = zmq_connect(sock,"tcp://0.0.0.0:7890");
+  retval = zmq_connect(sock,target);
   // Switch statement because surprisingly ZMQ_PAIR does not
   // support UDP
   if(retval != 0){
@@ -180,18 +196,35 @@ void send_msg(void* sock, int parts, int size){
     }
     exit(EXIT_FAILURE);
   }
+}
+
+void deliver_message(void* sock, int size, int flags);
+void send_msg(void* sock, int parts, int size){
+  for(int i=0; i < (parts-1); i++){
+    deliver_message(sock,size,ZMQ_SNDMORE);
+    sleep(operation.interval);
+  }
+  deliver_message(sock,size,0);
+
+  puts(" done!");
+}
+
+void deliver_message(void* sock, int size, int flags){
+  zmq_msg_t msg;
+  int retval;
 
   // Prep the message from preset value. ZMQ takes ownership.
-  void *data = calloc(strlen(MSG),1);
+  void *data = calloc(size,1);
   assert(data != NULL);
-  memcpy(data,MSG,strlen(MSG));
+  for(int i=0; i<size; i++){
+    ((char*) data)[i] = 'A';
+  }
 
-  zmq_msg_t msg;
-  retval = zmq_msg_init_data(&msg, data, strlen(MSG), free_msg, NULL);
+  retval = zmq_msg_init_data(&msg, data, size, free_msg, NULL);
   assert(retval == 0);
 
-  printf("sending %s\n",zmq_msg_data(&msg));
-  retval = zmq_send(sock,&msg,0);
+  // printf("sending %s\n",zmq_msg_data(&msg));
+  retval = zmq_send(sock,&msg,flags);
   if(retval != 0){
     switch(errno){
       case EAGAIN:
@@ -226,16 +259,17 @@ void send_msg(void* sock, int parts, int size){
   // Cleanup
   printf("cleaning up msg...");
   zmq_msg_close(&msg);
-  puts(" done!");
 }
 
 void display_usage(){
   printf("The ZMQ Blaster, version %s\n",version);
   puts("usage");
-  puts(" --mode {pub,sub,pair}");
-  puts(" --parts numparts : Send a message with numparts frames");
-  puts(" --size size      : Size of a frame");
-  puts(" --help           : This usage information");
+  puts("--mode {pub,sub,pair}");
+  puts("--parts numparts : Send a message with numparts frames");
+  puts("--destination dst: Connect to destination");
+  puts("--interval time  : How long between frames (milliseconds)");
+  puts("--size size      : Size of a frame");
+  puts("--help           : This usage information");
 }
 void parse_arguments(int argc, char **args){
   int retval = 0;
@@ -246,12 +280,14 @@ void parse_arguments(int argc, char **args){
     {"socket-type", required_argument, 0, 't'},
     {"mode",  required_argument,       0, 'm'},
     {"parts", required_argument,       0, 'p'},
+    {"destination",required_argument,  0, 'd'},
+    {"interval",required_argument,     0, 'i'},
     {"size",  required_argument,       0, 's'},
     {"help",  no_argument,             0, 'h'},
     {0, 0, 0, 0}
   };
   while(1){
-    c = getopt_long(argc, args, "t:m:p:s:h?",
+    c = getopt_long(argc, args, "t:m:p:s:d:i:h?",
                     long_options, &option_index);
     if(c == -1)
       break;
@@ -302,15 +338,45 @@ void parse_arguments(int argc, char **args){
         }
         break;
       case 't':
-        printf("AEEEEE");
         if(strncmp(optarg,"pair",4) == 0){
           operation.socket_type = ZMQ_PAIR;
-        } else if(strncmp(optarg,"pub",4) == 0){
+        } else if(strncmp(optarg,"pub",3) == 0){
           operation.socket_type = ZMQ_PUB;
+        } else if(strncmp(optarg,"sub",3) == 0){
+          operation.socket_type = ZMQ_SUB;
+        } else if(strncmp(optarg,"req",3) == 0){
+          operation.socket_type = ZMQ_REQ;
+        } else if(strncmp(optarg,"rep",3) == 0){
+          operation.socket_type = ZMQ_REP;
+        } else if(strncmp(optarg,"dealer",6) == 0){
+          operation.socket_type = ZMQ_DEALER;
+        } else if(strncmp(optarg,"router",6) == 0){
+          operation.socket_type = ZMQ_ROUTER;
+        } else if(strncmp(optarg,"push",4) == 0){
+          operation.socket_type = ZMQ_PUSH;
+        } else if(strncmp(optarg,"pull",4) == 0){
+          operation.socket_type = ZMQ_PULL;
+        } else if(strncmp(optarg,"xpub",4) == 0){
+          operation.socket_type = ZMQ_XPUB;
+        } else if(strncmp(optarg,"xsub",4) == 0){
+          operation.socket_type = ZMQ_XSUB;
         } else {
-          fprintf(stderr,"ERROR: Unknown socket type '%s'",optarg);
+          fprintf(stderr,"ERROR: Unknown socket type '%s'\n",optarg);
           exit(EXIT_FAILURE);
         }
+        break;
+      case 'i':
+        retval = sscanf(optarg,"%d",&(operation.interval));
+        if(retval < 1){
+          fprintf(stderr,"ERROR: Could not parse interval argument\n");
+          exit(EXIT_FAILURE);
+        } else if(operation.interval < 0){
+          fprintf(stderr,"ERROR: '%d' is not a valid interval",operation.interval);
+          exit(EXIT_FAILURE);
+        }
+        break;
+      case 'd':
+        operation.destination = optarg;
         break;
       default:
         puts("Unknown option");
