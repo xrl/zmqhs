@@ -12,16 +12,18 @@
 #define MSG "ASDFASDFASDFASDFASDFASDFASDF"
 static char* version = "0.1.0";
 void free_msg(void *data, void *hint);
-void send_msg(void* sock);
+void send_msg(void* sock, int parts, int size);
 void recv_msg(void* sock);
 
 struct operation {
   enum {MODE_SEND, MODE_RECV, MODE_UNSET} mode;
+  int socket_type;
   int parts;
   int size;
 } operation;
 static void set_default_operation_values(){
-  operation.mode  = MODE_UNSET;
+  operation.mode        = MODE_UNSET;
+  operation.socket_type = ZMQ_PAIR;
   operation.parts = 1;
   operation.size  = 5;
 }
@@ -30,14 +32,13 @@ void parse_arguments(int argc, char**args);
 
 int main(int argc, char **args){
   parse_arguments(argc,args);
-  exit(EXIT_FAILURE);
 
   int retval;
 
   void *ctx = zmq_init(1);
   assert(ctx != NULL);
 
-  void *sock = zmq_socket(ctx,ZMQ_PAIR);
+  void *sock = zmq_socket(ctx,operation.socket_type);
   assert(sock != NULL);
 
   int linger_interval = 1;
@@ -46,13 +47,16 @@ int main(int argc, char **args){
                           sizeof(linger_interval));
   assert(retval == 0);
 
-  if(strncmp(args[1],"send",4) == 0){
-    send_msg(sock);
-  } else if(strncmp(args[1],"recv",4) == 0){
-    recv_msg(sock);
-  } else {
-    puts("oneframe send OR oneframe recv");
-    exit(EXIT_FAILURE);
+  switch(operation.mode){
+    case MODE_SEND:
+      send_msg(sock,operation.parts,operation.size);
+      break;
+    case MODE_RECV:
+      printf("recv mode!");
+      break;
+    case MODE_UNSET:
+      printf("bad mode!");
+      exit(EXIT_FAILURE);
   }
 
   sleep(1);
@@ -146,7 +150,7 @@ void recv_msg(void* sock){
   zmq_msg_close(&msg);
 }
 
-void send_msg(void* sock){
+void send_msg(void* sock, int parts, int size){
   int retval = 0;
   retval = zmq_connect(sock,"tcp://0.0.0.0:7890");
   // Switch statement because surprisingly ZMQ_PAIR does not
@@ -228,11 +232,10 @@ void send_msg(void* sock){
 void display_usage(){
   printf("The ZMQ Blaster, version %s\n",version);
   puts("usage");
-  puts(" --mode send       : Send data");
-  puts(" --mode recv       : Receive data");
-  puts(" --parts numparts  : Send a message with numparts frames");
-  puts(" --size size       : Size of a frame");
-  puts(" --help            : This usage information");
+  puts(" --mode {pub,sub,pair}");
+  puts(" --parts numparts : Send a message with numparts frames");
+  puts(" --size size      : Size of a frame");
+  puts(" --help           : This usage information");
 }
 void parse_arguments(int argc, char **args){
   int retval = 0;
@@ -240,14 +243,15 @@ void parse_arguments(int argc, char **args){
   int c = 0;
   set_default_operation_values();
   static struct option long_options[] = {
-    {"mode",  required_argument,    0, 'm'},
-    {"parts", required_argument,    0, 'p'},
-    {"size",  required_argument,    0, 's'},
-    {"help",  no_argument,          0, 'h'},
+    {"socket-type", required_argument, 0, 't'},
+    {"mode",  required_argument,       0, 'm'},
+    {"parts", required_argument,       0, 'p'},
+    {"size",  required_argument,       0, 's'},
+    {"help",  no_argument,             0, 'h'},
     {0, 0, 0, 0}
   };
   while(1){
-    c = getopt_long(argc, args, "m:p:s:h?",
+    c = getopt_long(argc, args, "t:m:p:s:h?",
                     long_options, &option_index);
     if(c == -1)
       break;
@@ -290,10 +294,21 @@ void parse_arguments(int argc, char **args){
       case 's':
         retval = sscanf(optarg,"%d",&(operation.size));
         if(retval < 1){
-          fprintf(stderr,"ERROR: Could not parse size. Must be an unsigned decimal\n");
+          fprintf(stderr,"ERROR: Could not parse size argument\n");
           exit(EXIT_FAILURE);
         } else if(operation.size < 1){
-          fprintf(stderr,"ERROR: %d is invalid. Size must be greater than 0\n",operation.size);
+          fprintf(stderr, "ERROR: %d is invalid. Size must be greater than 0\n",operation.size);
+          exit(EXIT_FAILURE);
+        }
+        break;
+      case 't':
+        printf("AEEEEE");
+        if(strncmp(optarg,"pair",4) == 0){
+          operation.socket_type = ZMQ_PAIR;
+        } else if(strncmp(optarg,"pub",4) == 0){
+          operation.socket_type = ZMQ_PUB;
+        } else {
+          fprintf(stderr,"ERROR: Unknown socket type '%s'",optarg);
           exit(EXIT_FAILURE);
         }
         break;
