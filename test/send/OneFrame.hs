@@ -44,7 +44,7 @@ open_connection servaddr servport = do
 send_and_read sock = do
   let opening_salvo = B.pack [0x01, 0x7E]
   LSB.send sock opening_salvo
-  --stuff <- LSB.recv sock 1024
-  --ZF.debug_it stuff
+  stuff <- LSB.recv sock 1024
+  ZF.debug_it stuff
   let outgoing_data = ZF.payload_response (B.pack [65,66,67,68,69])
   LSB.send sock outgoing_data

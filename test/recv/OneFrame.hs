@@ -1,10 +1,11 @@
 #!/usr/bin/env runhaskell
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE NoMonomorphismRestriction, OverloadedStrings #-}
 
 import qualified ZMQHS.Frame     as ZF
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.Attoparsec as AP
 import qualified Data.Binary.Get as G
 import qualified Data.Binary.Put as P
@@ -44,10 +45,10 @@ main = do
             (readAllDataNew do_something)
 
 readAllDataNew callback (reqsock,reqaddr) = do
-  a_bytestring <- SB.recv reqsock 2048
-  CM.unless (B.null a_bytestring)
+  a_bytestring <- LSB.recv reqsock 2048
+  CM.unless (LB.null a_bytestring)
             -- Do the callback with what we got, then keep going
             (callback a_bytestring reqsock >> (readAllDataNew callback (reqsock,reqaddr)))
 
-do_something str sock = (debug_it str) >> (fake_handle sock)
-fake_handle reqsock   = LSB.send reqsock (ZF.handshake_response)
+do_something str sock = (ZF.debug_it str) >> (fake_handle sock)
+fake_handle reqsock   = LSB.send reqsock (ZF.payload_response "")
