@@ -11,16 +11,36 @@
 
 module ZMQHS.Connection
 where
+import ZMQHS.Frame
 import Control.Monad (guard)
 import Control.Applicative hiding (empty)
 import           Data.Word (Word8, Word64)
 import qualified Data.Attoparsec as AP
 import qualified Data.Attoparsec.Binary as APB
-import Debug.Trace
+import qualified Network.Socket.ByteString.Lazy as LSB
 
-parser = do
-    first <- AP.anyWord8
-    second <- AP.anyWord8
-    case first of
-        0x01 -> case second of
-                    
+{-
+    ZMQ ABNF
+    connection  = greeting content
+    greeting    = anonymous / identity
+    anonymous   = %x01 final
+    identity    = length final (%x01-ff) *OCTET
+    
+    message     = *more-frame final-frame
+    more-frame  = length more body
+    final-frame = length final body
+    length      = OCTET / (%xFF 8OCTET)
+    more        = %x01
+    final       = %x00
+    body        = *OCTET
+-}
+
+parseMultipart :: AP.Parser Message
+parseMultipart = Message <$> parseIdentity  <*> parseFrames <?> "multipart"
+  where
+    parseFrames = do
+      (_, cont, payload) <- frameParser
+      case cont of
+        MORE  -> (payload:) <$> parseFrames
+        FINAL -> return [payload]
+        _     -> error "unexpected"
