@@ -8,8 +8,10 @@
 -- more        = %x01
 -- final       = %x00
 -- body        = *OCTET
-
+{-# LANGUAGE NoMonomorphismRestriction #-}
 module ZMQHS.Frame
+  (payloadResponse,
+   toBS)
 where
 
 import Control.Applicative hiding (empty)
@@ -26,70 +28,50 @@ import Control.Monad
 
 import Debug.Trace
 
--- import qualified Data.Hex             as DH
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString      as BS
 import qualified Numeric              as N
 
 -- include/zmq.h #define, merge all flags
-continuation_flag :: Integer
-continuation_flag = 0x01
 
-data FrameCont = FINAL | MORE  | BADCONT Word8
-    deriving (Show, Eq)
+data Frame = MoreFrame  BS.ByteString
+           | FinalFrame BS.ByteString
+  deriving (Show)
 
-frame_cont :: Word8 -> FrameCont 
-frame_cont x         
-  | (.&.) x 0x01 == 0x01 = FINAL
-  | otherwise            = MORE
-  
-parseFC :: AP.Parser FrameCont
-parseFC =  frame_cont <$> AP.anyWord8 <?> "frame continuation"
+parseFC :: AP.Parser (BS.ByteString -> Frame)
+parseFC = do frameCont <$> AP.anyWord8 <?> "frame continuation"
+  where frameCont x
+         | (.&.) x 0x01 == 0x01 = MoreFrame
+         | otherwise            = FinalFrame
 
-parseFinal :: AP.Parser ()
-parseFinal = do x <- AP.anyWord8 
-                guard (x `mod` 2 == 0) 
-                return () <?> "final"
-
-parseMore :: AP.Parser Word8
-parseMore = AP.word8 0x01  <?> "more"
-
-parseIdentity :: AP.Parser Identity
-parseIdentity = do
-  len <- parseLength
-  _ <- parseFinal
-  (if len == 1
-     -- anonymous, let's record that
-     then trace "anon"  $ return Anonymous 
-     else trace "named" $ Named <$> AP.take (len - 1)) <?> "identity"
-          
 {-                 
 length      = OCTET / (%xFF 8OCTET)
 -}
+parseLength :: AP.Parser Int
 parseLength = do
   first_byte <- fromIntegral <$> AP.anyWord8
   if first_byte == 0xFF
     then fromIntegral <$> APB.anyWord64be
     else return first_byte
-         
+
 {-
 more        = %x01
 final       = %x00
 body        = *OCTET
 -}
-frameParser :: AP.Parser (Int, FrameCont, BS.ByteString)
+frameParser :: AP.Parser Frame
 frameParser = do
-  frame_size <- parseLength
-  fc <- parseFC
+  frame_size  <- parseLength
+  constructor <- parseFC
   let payload_size = frame_size - 1
   payload <- AP.take payload_size
-  return (payload_size, fc, payload)
+  return (constructor payload)
 
-payload_response :: B.ByteString -> B.ByteString
-payload_response = P.runPut . generator 0x7E
+payloadResponse :: B.ByteString -> B.ByteString
+payloadResponse = P.runPut . generator 0x7E
 
-structured_response :: Message -> B.ByteString
-structured_response = P.runPut . putMessage
+toBS :: Message -> B.ByteString
+toBS =  P.runPut . putMessage
 
 putMessage :: Message -> P.Put
 putMessage (Message identity chunks) =  do
@@ -106,7 +88,7 @@ putMessage (Message identity chunks) =  do
   P.putByteString lastchunk
 
 putIdentity :: Identity -> P.PutM ()
-putIdentity Anonymous = P.putWord8 0x1 >> P.putWord8 0x0
+putIdentity Anonymous = P.putWord8 0x01 >> P.putWord8 0x00
 putIdentity (Named str) = do
   putLength (BS.length str + 1)
   putFinal

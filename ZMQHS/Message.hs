@@ -7,3 +7,12 @@ data Identity = Anonymous
     deriving(Show)
 data Message = Message Identity [BS.ByteString]
     deriving (Show)
+
+--parseIdentity :: AP.Parser Identity
+--parseIdentity = do
+--  len <- parseLength
+--  _ <- parseFinal
+--  (if len == 1
+--     -- anonymous, let's record that
+--     then trace "anon"  $ return Anonymous 
+--     else trace "named" $ Named <$> AP.take (len - 1)) <?> "identity"
