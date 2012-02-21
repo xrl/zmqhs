@@ -34,13 +34,3 @@ import qualified Network.Socket.ByteString.Lazy as LSB
     final       = %x00
     body        = *OCTET
 -}
-
-parseMultipart :: AP.Parser Message
-parseMultipart = Message <$> parseIdentity  <*> parseFrames <?> "multipart"
-  where
-    parseFrames = do
-      (_, cont, payload) <- frameParser
-      case cont of
-        MORE  -> (payload:) <$> parseFrames
-        FINAL -> return [payload]
-        _     -> error "unexpected"

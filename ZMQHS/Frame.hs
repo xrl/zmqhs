@@ -10,13 +10,9 @@
 -- body        = *OCTET
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module ZMQHS.Frame
-  (payloadResponse,
-   toBS)
 where
 
 import Control.Applicative hiding (empty)
-
-import ZMQHS.Message
 
 import           Data.Word (Word8)
 import           Data.Bits
@@ -24,11 +20,9 @@ import qualified Data.Attoparsec as AP
 import Data.Attoparsec((<?>))
 import qualified Data.Attoparsec.Binary as APB
 import qualified Data.Binary.Put as P
-import Control.Monad
 
 import Debug.Trace
 
-import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString      as BS
 import qualified Numeric              as N
 
@@ -67,52 +61,32 @@ frameParser = do
   payload <- AP.take payload_size
   return (constructor payload)
 
-payloadResponse :: B.ByteString -> B.ByteString
-payloadResponse = P.runPut . generator 0x7E
+--payloadResponse :: BS.ByteString -> BS.ByteString
+--payloadResponse = P.runPut . generator 0x7E
 
-toBS :: Message -> B.ByteString
-toBS =  P.runPut . putMessage
-
-putMessage :: Message -> P.Put
-putMessage (Message identity chunks) =  do
-  putIdentity identity 
-  let len = length chunks
-  forM_ (take (len-1) chunks) $ \chunk -> do
-    putLength (BS.length chunk + 1)
-    putMore
-    P.putByteString chunk
-  -- expanded for clarity
-  let lastchunk = last chunks
-  putLength   (BS.length lastchunk + 1)
-  putFinal
-  P.putByteString lastchunk
-
-putIdentity :: Identity -> P.PutM ()
-putIdentity Anonymous = P.putWord8 0x01 >> P.putWord8 0x00
-putIdentity (Named str) = do
-  putLength (BS.length str + 1)
-  putFinal
-  P.putByteString str
-  
-putMore :: P.Put
-putMore = P.putWord8 0x1
-
-putFinal :: P.Put
-putFinal = P.putWord8 0x0  
+putFrame :: Frame -> P.Put
+putFrame (MoreFrame bs) = do
+  putLength (1+BS.length bs)
+  P.putWord8 0x01
+  P.putByteString bs
+putFrame (FinalFrame bs) = do
+  putLength (1+BS.length bs)
+  P.putWord8 0x00
+  P.putByteString bs 
 
 putLength :: Integral a => a -> P.Put
 putLength len
  | len < 255 = P.putWord8    $ fromIntegral len
  | otherwise = P.putWord8 0xFF >> (P.putWord64be $ fromIntegral len)
 
-generator :: Word8 -> B.ByteString -> P.Put
+generator :: Word8 -> BS.ByteString -> P.Put
 generator header body = do
     let header_len = 1
-    let body_len   = B.length body
+    let body_len   = BS.length body
     let len = header_len + body_len
     putLength len    
     P.putWord8 header
-    P.putLazyByteString body
+    P.putByteString body
 
-debug_it :: B.ByteString -> IO ()
-debug_it = putStrLn . concat . map (flip N.showHex " ") . B.unpack
+debug_it :: BS.ByteString -> IO ()
+debug_it = putStrLn . concat . map (flip N.showHex " ") . BS.unpack
