@@ -21,8 +21,8 @@ data Identity = Anonymous
 data Message = Message Identity [BS.ByteString]
     deriving (Show)
 
---getMessage :: Message
---getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "multipart"
+getMessage :: AP.Parser Message
+getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "multipart"
 
 parseFrames :: AP.Parser [BS.ByteString]
 parseFrames = do
@@ -32,12 +32,10 @@ parseFrames = do
     (FinalFrame payload) -> return [payload]
 
 --getIdentity :: 
+parseIdentity :: AP.Parser Identity
 parseIdentity = do
   frame <- frameParser
-  payload <- case frame of
-    MoreFrame payload  -> payload
-    FinalFrame payload -> payload
-  return (identify payload)
+  return (identify $ getPayload frame)
 
 identify :: BS.ByteString -> Identity
 identify bs = do

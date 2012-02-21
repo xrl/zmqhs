@@ -32,6 +32,10 @@ data Frame = MoreFrame  BS.ByteString
            | FinalFrame BS.ByteString
   deriving (Show)
 
+getPayload :: Frame -> BS.ByteString
+getPayload (MoreFrame payload) = payload
+getPayload (FinalFrame payload) = payload
+
 parseFC :: AP.Parser (BS.ByteString -> Frame)
 parseFC = do frameCont <$> AP.anyWord8 <?> "frame continuation"
   where frameCont x
