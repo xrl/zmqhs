@@ -6,6 +6,8 @@ where
 
 import ZMQHS.Frame
 
+import qualified Data.Attoparsec as AP
+
 import qualified Data.ByteString      as BS
 import qualified Data.Binary.Put as P
 
@@ -20,14 +22,14 @@ data Message = Message Identity [BS.ByteString]
     deriving (Show)
 
 --getMessage :: Message
-getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "multipart"
-  where
-    parseFrames = do
-      case frameParser of
-        -- The problem is parse frames will return (Frame payload) and
-        -- I should only cons the payload part.
-        (MoreFrame  payload) -> (payload:) <$> parseFrames
-        (FinalFrame payload) -> return [payload]
+--getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "multipart"
+
+parseFrames :: AP.Parser [BS.ByteString]
+parseFrames = do
+  frame <- frameParser
+  case frame of
+    (MoreFrame  payload) -> (payload:) <$> (parseFrames)
+    (FinalFrame payload) -> return [payload]
 
 --getIdentity :: 
 parseIdentity = do
@@ -35,7 +37,7 @@ parseIdentity = do
   payload <- case frame of
     MoreFrame payload  -> payload
     FinalFrame payload -> payload
-  identify payload
+  return (identify payload)
 
 identify :: BS.ByteString -> Identity
 identify bs = do
