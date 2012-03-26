@@ -12,10 +12,13 @@
 module ZMQHS.Connection
 (
     connect,
+    close,
     send,
     listen,
+    listen_tcp,
+    accept,
     S.SocketType(..),
-    Connection(..)
+    Socket(..)
 )
 where
 import ZMQHS.Frame
@@ -31,46 +34,55 @@ import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString.Lazy as LSB
 import qualified Data.Binary.Put as P
 
-data Connection = Client S.Socket Identity
-                | Server S.Socket Identity
+data Socket = Client S.Socket
+            | Server S.Socket Identity
+    deriving (Show)
 
-getSocket :: Connection -> S.Socket
-getSocket (Client sock _) = sock
-getSocket (Server sock _) = sock
+--getSocket :: Connection -> S.Socket
+--getSocket (Client sock _) = sock
+--getSocket (Server sock _) = sock
 
 {-
     Hand-waving to make it easy for you to just open a TCP ZMQ socket
 -}
-connect_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Connection
+connect_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Socket
 connect_tcp servaddr servport id = connect servaddr servport S.Stream id
 
 {-
     The main way of getting a Connection. If you want more fine-grained control
     over socket settings feel free to roll your own.
 -}
-connect :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Connection
+connect :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Socket
 connect servaddr servport socktype id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
-  return $ Client sock id
+  return $ Client sock
+
+{-
+    Close the socket
+-}
+
+close :: Socket -> IO ()
+close (Client sock)    = S.sClose sock
+close (Server sock id) = S.sClose sock
 
 {-
     Send data as you please
 -}
-send :: Connection -> Message -> IO GHC.Int.Int64
-send (Client sock id) msg = do
+send :: Socket -> Message -> IO GHC.Int.Int64
+send (Client sock) msg = do
     let outgoing = P.runPut $ putMessage msg
     LSB.send sock outgoing
-send (Server sock id) msg = do
+send (Server sock _) msg = do
     let outgoing = P.runPut $ putMessage msg
     LSB.send sock outgoing
 
-list_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Connection
-list_tcp servaddr servport id = listen servaddr servport S.Stream id
+listen_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Socket
+listen_tcp servaddr servport id = listen servaddr servport S.Stream id
 
-listen :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Connection
+listen :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Socket
 listen servaddr servport socktype id = do
     addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
     -- TODO servaddrinfo could be []. This will fail at runtime. Perhaps IO (Maybe Connection) would be better?
@@ -80,23 +92,18 @@ listen servaddr servport socktype id = do
     S.listen sock 1
     return $ Server sock id
 
-accept :: Connection -> Connection
-accept (Server serversock _) = do 
-    clientsock <- S.Accept serversock
-    first_frame < - readFrame clientSock 
-    return $ Connection clientsock 
+accept :: Socket -> IO (S.Socket, S.SockAddr)
+accept (Server serversock _) = S.accept serversock
 
-readFrame :: S.Socket -> IO (Maybe Frame)
-readFrame sock = do
-    framepart <- LSB.recv sock 2048
-    readFramePart sock $ frameParser framepart
-readFramePart sock (Fail unconsumed ctx reason) = do
-    return Nothing
-readFramePart sock (Partial cont) = do
-    moredata <- LSB.recv sock 2048
-    readFramePart sock $ cont moredata
-readFramePart sock (Done leftover frame) = do
-    return frame
+--readFrame :: S.Socket -> IO Client
+--readFrame sock = readFramePart sock $ frameParser . LSB.recv sock 2048
+--readFramePart sock (AP.Fail unconsumed ctx reason) = do
+--    return Nothing
+--readFramePart sock (AP.Partial cont) = do
+--    moredata <- LSB.recv sock 2048
+--    readFramePart sock $ cont moredata
+--readFramePart sock (AP.Done leftover frame) = do
+--    return frame
 
 --recv :: Connection -> Message
 --recv (Server sock id) = do
