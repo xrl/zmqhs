@@ -47,11 +47,11 @@ Cabal-version:       >=1.8
 Library
   Hs-Source-Dirs: .
   -- Modules exported by the library.
-  Exposed-modules: ZMQHS.Frame
+  Exposed-modules: ZMQHS.Frame ZMQHS.Message ZMQHS.Connection
   Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
-  Build-depends: base, binary, hex, bytestring, attoparsec, attoparsec-binary
+  Build-depends: base, binary, hex, bytestring, attoparsec, attoparsec-binary, network
   
   -- Modules not exported by this package.
   -- Other-modules:       
@@ -59,3 +59,6 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
 
+-- Test-Suite: test-frame
+--  Type: detailed-1.0
+--  Main-Is: 

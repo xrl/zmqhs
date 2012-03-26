@@ -31,17 +31,14 @@ parseFrames = do
     (MoreFrame  payload) -> (payload:) <$> (parseFrames)
     (FinalFrame payload) -> return [payload]
 
---getIdentity :: 
 parseIdentity :: AP.Parser Identity
 parseIdentity = do
   frame <- frameParser
   return (identify $ getPayload frame)
-
-identify :: BS.ByteString -> Identity
-identify bs = do
-  case BS.length bs of
-    0         -> Anonymous
-    otherwise -> Named bs
+  where identify bs = do
+        case BS.length bs of
+          0         -> Anonymous
+          otherwise -> Named bs
 
 putIdentity :: Identity -> P.PutM ()
 putIdentity Anonymous   = putFrame (FinalFrame (BS.pack []))
