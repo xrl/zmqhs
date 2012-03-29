@@ -12,7 +12,8 @@
 module ZMQHS.Connection
 (
     connect,
-    close,
+    connect_uri,
+    uri_parts,
     send,
     listen,
     listen_tcp,
@@ -30,6 +31,7 @@ import Control.Applicative hiding (empty)
 import           Data.Word (Word8, Word64)
 import qualified Data.Attoparsec as AP
 import qualified Data.Attoparsec.Binary as APB
+import qualified Network.URI as U
 import qualified Network.Socket  as S
 import qualified Network.Socket.ByteString.Lazy as LSB
 import qualified Data.Binary.Put as P
@@ -41,6 +43,22 @@ data Socket = Client S.Socket
 --getSocket :: Connection -> S.Socket
 --getSocket (Client sock _) = sock
 --getSocket (Server sock _) = sock
+
+uri_parts :: U.URI -> Maybe (S.HostName, S.ServiceName, S.SocketType)
+uri_parts uri = do
+    auth <- U.uriAuthority uri
+    sock <- socktype
+    return (U.uriRegName auth, port auth, sock)
+    where socktype
+            | U.uriScheme uri == "tcp:" = Just S.Stream
+            | otherwise = Nothing
+          port = tail . U.uriPort
+
+--connect_uri_t :: (S.HostName,S.ServiceName,S.SocketType) -> Identity -> MaybeT IO (Socket)
+--connect_uri_t (host,port,socktype) id = connect_t host port socktype id
+
+connect_uri :: (S.HostName, S.ServiceName, S.SocketType) -> Identity -> IO Socket
+connect_uri (host,port,socktype) id = connect host port socktype id
 
 {-
     Hand-waving to make it easy for you to just open a TCP ZMQ socket

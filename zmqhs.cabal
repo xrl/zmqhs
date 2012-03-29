@@ -62,3 +62,7 @@ Library
 -- Test-Suite: test-frame
 --  Type: detailed-1.0
 --  Main-Is: 
+
+Executable blaster
+  Main-Is: test/blaster/Blaster.hs
+  Build-Depends: base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring
