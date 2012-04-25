@@ -27,6 +27,7 @@ import ZMQHS.Message
 -- I want type sigs to be more general. How can I get rid of this?
 import GHC.Int
 import Control.Monad (guard)
+import Control.Monad.Maybe as MT
 import Control.Applicative hiding (empty)
 import           Data.Word (Word8, Word64)
 import qualified Data.Attoparsec as AP
