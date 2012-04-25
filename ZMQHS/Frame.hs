@@ -33,7 +33,7 @@ data Frame = MoreFrame  BS.ByteString
   deriving (Show)
 
 getPayload :: Frame -> BS.ByteString
-getPayload (MoreFrame payload) = payload
+getPayload (MoreFrame payload)  = payload
 getPayload (FinalFrame payload) = payload
 
 parseFC :: AP.Parser (BS.ByteString -> Frame)
