@@ -6,7 +6,7 @@ Name:                zmqhs
 -- The package version. See the Haskell package versioning policy
 -- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
 -- standards guiding when and how versions should be incremented.
-Version:             0.1
+Version:             0.1.7
 
 -- A short (one-line) description of the package.
 Synopsis:            A pure Haskell ZMQ implementation
@@ -51,7 +51,7 @@ Library
   Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
-  Build-depends: base, binary, hex, bytestring, attoparsec, attoparsec-binary, network
+  Build-depends: base, binary, hex, bytestring, attoparsec, attoparsec-binary, network, MaybeT
   
   -- Modules not exported by this package.
   -- Other-modules:       
