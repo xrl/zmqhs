@@ -264,7 +264,7 @@ void deliver_message(void* sock, int size, int flags){
 void display_usage(){
   printf("The ZMQ Blaster, version %s\n",version);
   puts("usage");
-  puts("--mode {pub,sub,pair}");
+  puts("--mode {send,recv}");
   puts("--parts numparts : Send a message with numparts frames");
   puts("--destination dst: Connect to destination");
   puts("--interval time  : How long between frames (milliseconds)");
