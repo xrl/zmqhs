@@ -13,9 +13,11 @@ module ZMQHS.Connection
 (
     connect,
     connect_uri,
+    close,
     uri_parts,
     send,
     listen,
+    listen_uri,
     listen_tcp,
     accept,
     S.SocketType(..),
@@ -97,6 +99,9 @@ send (Client sock) msg = do
 send (Server sock _) msg = do
     let outgoing = P.runPut $ putMessage msg
     LSB.send sock outgoing
+
+listen_uri :: (S.HostName,S.ServiceName,S.SocketType) -> Identity -> IO Socket
+listen_uri (host,port,socktype) id = listen host port socktype id
 
 listen_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Socket
 listen_tcp servaddr servport id = listen servaddr servport S.Stream id

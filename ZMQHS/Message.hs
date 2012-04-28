@@ -16,8 +16,8 @@ import Control.Applicative hiding (empty)
 import Data.Attoparsec((<?>))
 
 data Identity = Anonymous
-              | Named BS.ByteString -- can't be empty
-    deriving(Show)
+              | Named BS.ByteString
+    deriving (Show)
 data Message = Message Identity [BS.ByteString]
     deriving (Show)
 
