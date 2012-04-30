@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+   <head>
+      <title>ZMQHS Landing Page</title>
+      <link rel="stylesheet" type="text/css" href="samples/colorful.css" />
+      <!-- <link rel="stylesheet" type="text/css" href="samples/default.css" /> -->
+      <!-- <link rel="stylesheet" type="text/css" href="samples/emacs.css" /> -->
+      <link rel="stylesheet" type="text/css" href="samples/friendly.css" />
+      <style>
+      	body {
+           margin: auto;
+           font-family: Arial,Verdana;
+           display:block;
+           background-color: white;
+        }
+        div#top{
+        	border-bottom: 5px solid black;
+        	border-color:gray;
+        }
+        div#top a{
+        	text-decoration:none;
+        	color:green;
+        }
+        div#container{
+           background-color:white;
+           margin:auto;
+           margin-top:10px;
+           padding:0px;
+           width:800px;
+           border:none;
+        }
+        div#header a{
+           text-decoration:none;
+           color:black;
+           font-size:3.5em;
+           display:block;
+        }
+        div#header a:hover{
+           background-color:#dd0404;
+           padding:0px 5px 0px 5px;
+           display:block;
+        }
+        div#header p.nav{
+           display:block;
+		   margin:0px;
+		   padding:0px;
+		   width:185px;
+        }
+      </style>
+   </head>
+   <body>
+   	<div id="top">
+   		<p>Sponsored by <a href="http://tureus.com/" target="_blank">Tureus Inc.</a></p>
+   	</div>
+    <div id="container">
+     	<div id="header">
+     		<p class="nav">
+     			<a href="https://github.com/xrl/zmqhs" target="_blank">Blog</a>
+     			<a href="http://github.com/xrl" target="_blank">Github</a>
+     		</p> 
+     	</div>
+     	<hr>
+     	<div id="body">
+     		<h2>Provide a description</h2>
+     		<h2>Code</h2>
+     			<div class="codehilite"><pre><span class="kr">data</span> <span class="kt">Identity</span> <span class="ow">=</span> <span class="kt">Anonymous</span>
+              <span class="o">|</span> <span class="kt">Named</span> <span class="kt">BS</span><span class="o">.</span><span class="kt">ByteString</span> <span class="c1">-- can&#39;t be empty</span>
+   <span class="kr">deriving</span><span class="p">(</span><span class="kt">Show</span><span class="p">)</span>
+<span class="kr">data</span> <span class="kt">Message</span> <span class="ow">=</span> <span class="kt">Message</span> <span class="kt">Identity</span> <span class="p">[</span><span class="kt">BS</span><span class="o">.</span><span class="kt">ByteString</span><span class="p">]</span>
+   <span class="kr">deriving</span> <span class="p">(</span><span class="kt">Show</span><span class="p">)</span>
+</pre></div>
+				<br>
+				<div class="codehilite"><pre><span class="nf">sock</span> <span class="ow">&lt;-</span> <span class="kt">ZC</span><span class="o">.</span><span class="n">connect_uri</span> <span class="n">ext_uri</span> <span class="n">typed_id</span>
+ <span class="n">sent</span> <span class="ow">&lt;-</span> <span class="kt">ZC</span><span class="o">.</span><span class="n">send</span> <span class="n">sock</span> <span class="p">(</span><span class="kt">Message</span> <span class="n">typed_id</span> <span class="p">[</span><span class="n">pack</span> <span class="n">payload</span><span class="p">])</span>
+ <span class="n">putStrLn</span> <span class="o">$</span> <span class="s">&quot;Sent &quot;</span> <span class="o">++</span> <span class="p">(</span><span class="n">show</span> <span class="n">sent</span><span class="p">)</span> <span class="o">++</span> <span class="s">&quot; bytes&quot;</span>
+</pre></div>
+     	</div>
+     </div>
+   </body>
+</html>
