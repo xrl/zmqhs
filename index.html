@@ -17,6 +17,7 @@
         div#top{
         	border-bottom: 5px solid black;
         	border-color:gray;
+          padding: 0px 0px 0px 10px;
         }
         div#top a{
         	text-decoration:none;
@@ -37,15 +38,21 @@
            display:block;
         }
         div#header a:hover{
-           background-color:#dd0404;
+           background-color:#b0abab;
            padding:0px 5px 0px 5px;
            display:block;
+           border-radius: 20px;
         }
         div#header p.nav{
            display:block;
-		   margin:0px;
-		   padding:0px;
-		   width:185px;
+		       margin:0px;
+		       padding:0px 0px 0px 120px;
+		       width:185px;
+        }
+        div#header{
+          background-image:url(images/zmqhs_logo.png);
+          background-repeat: no-repeat;
+          background-position: left;
         }
       </style>
    </head>
@@ -62,7 +69,42 @@
      	</div>
      	<hr>
      	<div id="body">
-     		<h2>Provide a description</h2>
+        <h2>About</h2>
+     		<p>This project is an attempt at implementing a low-level, binary
+protocol in a high level functional language. The aim is to remove
+runtime dependencies and explore the performance characteristics of
+the GHC compiler and runtime. The project also includes a command-line
+tool for testing ZMQ end-points.</p>
+        <h2>ZMQHS the library</h2>
+        <p>The cabal file describes a library which can be included in any
+Haskell program. The biggest restriction currently is that all code
+must run on <a href="http://hackage.haskell.org/trac/ghc/" target ="_blank">GHC</a>. The library currently supports
+creating named and anonymous ZMTP connections and sending/receiving
+ZMTP binary data. Framing must be performed by the Haskell
+application. ZMQHS makes extensive use of TCP sockets, <a href="http://hackage.haskell.org/package/attoparsec" target="_blank">attoparsec</a>
+and <a href="http://hackage.haskell.org/package/attoparsec-binary" target="_blank">attoparsec-binary</a>.</p>
+        <h2>ZMQHS Blaster</h2>
+        <p>A command line tools written using CmdArgs. Provides a simple
+interface for sending and receiving messages. The Blaster applications
+acts as both an example of how to use ZMQHS as well as a performance
+tool.</p>
+        <h2>Future Work</h2>
+        <p>ZMQHS is built on TCP sockets and attoparsec. Future versions of ZMQHS
+will use <a href="http://www.yesodweb.com/book/conduits" target="_blank">Data.Conduit</a> to maintain
+tight operational characteristics and resource management.</p>
+        <h2>Documentation</h2>
+        <p>Please look at ZMQHS blaster for working example code. Xavier will be
+tackling Haddock at a later date.</p>
+        <h2>Contact</h2>
+        <p>Xavier Lange started this project as a way to combine elegance and
+specificity of Haskell with his passion for bit-twiddling and
+networking. To that end, he will accept any and all assistance. Please
+use <a href="https://github.com/xrl/zmqhs/issues" target="_blank">ZMQHS github issues</a></p>
+        <p>The project is liberal in who it accepts for development -- one
+successful commit and you will be given a commit bit.</p>
+        <h2>License</h2>
+        <p>A permissive BSD 3 clause license is used. If you find this code
+useful please drop me a line.</p>
      		<h2>Code</h2>
      			<div class="codehilite"><pre><span class="kr">data</span> <span class="kt">Identity</span> <span class="ow">=</span> <span class="kt">Anonymous</span>
               <span class="o">|</span> <span class="kt">Named</span> <span class="kt">BS</span><span class="o">.</span><span class="kt">ByteString</span> <span class="c1">-- can&#39;t be empty</span>
