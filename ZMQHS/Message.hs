@@ -22,7 +22,7 @@ data Message = Message Identity [BS.ByteString]
     deriving (Show)
 
 getMessage :: AP.Parser Message
-getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "multipart"
+getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "getMessage"
 
 parseFrames :: AP.Parser [BS.ByteString]
 parseFrames = do
