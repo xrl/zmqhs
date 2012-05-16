@@ -47,11 +47,15 @@ Cabal-version:       >=1.8
 Library
   Hs-Source-Dirs: .
   -- Modules exported by the library.
-  Exposed-modules: ZMQHS.Frame ZMQHS.Message ZMQHS.Connection
+  Exposed-modules: ZMQHS ZMQHS.Conduit
   Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
-  Build-depends: base, binary, hex, bytestring, attoparsec, attoparsec-binary, network, MaybeT
+  Build-depends: base, binary, hex, bytestring,
+                 attoparsec, attoparsec-binary,
+                 conduit, attoparsec-conduit, network-conduit,
+                 network,
+                 MaybeT
   
   -- Modules not exported by this package.
   -- Other-modules:       
@@ -65,4 +69,4 @@ Library
 
 Executable blaster
   Main-Is: test/blaster/Blaster.hs
-  Build-Depends: base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring
+  Build-Depends: base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring, zmqhs, conduit, attoparsec-conduit, network-conduit
