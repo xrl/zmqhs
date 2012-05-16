@@ -1,24 +1,28 @@
 -- Copyright:  Xavier Lange, 2011
 -- License:    BSD
 
--- From the RFC:
--- more-frame  = length more body
--- final-frame = length final body
--- length      = OCTET / (%xFF 8OCTET)
--- more        = %x01
--- final       = %x00
--- body        = *OCTET
+{-
+    ZMQ ABNF
+    connection  = greeting content
+    greeting    = anonymous / identity
+    anonymous   = %x01 final
+    identity    = length final (%x01-ff) *OCTET
+    
+    message     = *more-frame final-frame
+    more-frame  = length more body
+    final-frame = length final body
+    length      = OCTET / (%xFF 8OCTET)
+    more        = %x01
+    final       = %x00
+    body        = *OCTET
+-}
 
 module ZMQHS.Connection
 (
     connect,
-    connect_uri,
     close,
-    uri_parts,
     send,
     listen,
-    listen_uri,
-    listen_tcp,
     accept,
     S.SocketType(..),
     Socket(..)
@@ -26,6 +30,7 @@ module ZMQHS.Connection
 where
 import ZMQHS.Frame
 import ZMQHS.Message
+import ZMQHS.ConnSpec
 -- I want type sigs to be more general. How can I get rid of this?
 import GHC.Int
 import Control.Monad (guard)
@@ -43,38 +48,12 @@ data Socket = Client S.Socket
             | Server S.Socket Identity
     deriving (Show)
 
---getSocket :: Connection -> S.Socket
---getSocket (Client sock _) = sock
---getSocket (Server sock _) = sock
-
-uri_parts :: U.URI -> Maybe (S.HostName, S.ServiceName, S.SocketType)
-uri_parts uri = do
-    auth <- U.uriAuthority uri
-    sock <- socktype
-    return (U.uriRegName auth, port auth, sock)
-    where socktype
-            | U.uriScheme uri == "tcp:" = Just S.Stream
-            | otherwise = Nothing
-          port = tail . U.uriPort
-
---connect_uri_t :: (S.HostName,S.ServiceName,S.SocketType) -> Identity -> MaybeT IO (Socket)
---connect_uri_t (host,port,socktype) id = connect_t host port socktype id
-
-connect_uri :: (S.HostName, S.ServiceName, S.SocketType) -> Identity -> IO Socket
-connect_uri (host,port,socktype) id = connect host port socktype id
-
-{-
-    Hand-waving to make it easy for you to just open a TCP ZMQ socket
--}
-connect_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Socket
-connect_tcp servaddr servport id = connect servaddr servport S.Stream id
-
 {-
     The main way of getting a Connection. If you want more fine-grained control
     over socket settings feel free to roll your own.
 -}
-connect :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Socket
-connect servaddr servport socktype id = do
+connect :: ConnSpec -> Identity -> IO Socket
+connect (servaddr,servport,socktype) id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
@@ -100,14 +79,8 @@ send (Server sock _) msg = do
     let outgoing = P.runPut $ putMessage msg
     LSB.send sock outgoing
 
-listen_uri :: (S.HostName,S.ServiceName,S.SocketType) -> Identity -> IO Socket
-listen_uri (host,port,socktype) id = listen host port socktype id
-
-listen_tcp :: S.HostName -> S.ServiceName -> Identity -> IO Socket
-listen_tcp servaddr servport id = listen servaddr servport S.Stream id
-
-listen :: S.HostName -> S.ServiceName -> S.SocketType -> Identity -> IO Socket
-listen servaddr servport socktype id = do
+listen :: ConnSpec -> Identity -> IO Socket
+listen (servaddr,servport,socktype) id = do
     addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
     -- TODO servaddrinfo could be []. This will fail at runtime. Perhaps IO (Maybe Connection) would be better?
     let servaddrinfo = head addrinfos
@@ -131,20 +104,3 @@ accept (Server serversock _) = S.accept serversock
 
 --recv :: Connection -> Message
 --recv (Server sock id) = do
-
-
-{-
-    ZMQ ABNF
-    connection  = greeting content
-    greeting    = anonymous / identity
-    anonymous   = %x01 final
-    identity    = length final (%x01-ff) *OCTET
-    
-    message     = *more-frame final-frame
-    more-frame  = length more body
-    final-frame = length final body
-    length      = OCTET / (%xFF 8OCTET)
-    more        = %x01
-    final       = %x00
-    body        = *OCTET
--}
