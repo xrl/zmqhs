@@ -21,5 +21,5 @@ specFromURI uri = do
       return (U.uriRegName auth, port auth, sock)
       where socktype
               | U.uriScheme uri == "tcp:" = Just S.Stream
-              | otherwise = Nothing
+              | otherwise                 = Nothing
             port = tail . U.uriPort
