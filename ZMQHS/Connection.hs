@@ -59,7 +59,7 @@ source connspec@(servaddr,servport,socktype) id = do
   S.connect sock (S.addrAddress servinfo)
   return $ sourceSocket sock
 
-connspec = case spec "tcp://localhost:4000" of
+connspec = case spec "tcp://localhost:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
@@ -71,6 +71,12 @@ sink connspec@(servaddr,servport,socktype) id = do
   S.bindSocket sock (S.addrAddress servaddrinfo)
   S.listen sock 1
   return $ sinkSocket sock
+
+connect :: (IO (Source IO ByteString)) -> IO Message
+connect source_promise = do
+  source <- source_promise
+  ($$) source (sinkParser getMessage)
+
 
 {-
     The main way of getting a Connection. If you want more fine-grained control
