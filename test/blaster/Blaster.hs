@@ -62,29 +62,10 @@ to_ident :: String -> Z.Identity
 to_ident  "anonymous" = Z.Anonymous
 to_ident  name        = Z.Named (pack name)
 
---exec :: Op -> MaybeIO ()
---exec Op {mode=Pub, target_spec=Just target_spec, payload=payload, identity=identity} = do
---  sock <- liftIO $ Z.connect target_spec typed_id
---  sent <- liftIO $ Z.send sock (Z.Message typed_id [pack payload])
---  lift $ putStrLn $ "Sent " ++ (show sent) ++ " bytes"
---  return ()
---  where typed_id = to_ident identity
-
 exec :: Op -> IO ()
 exec Op {mode=Pub, target_spec=Just target_spec, payload=payload, identity=identity} = do
-  Z.Client sock <- Z.connect target_spec typed_id
-  putStrLn $ "sock: " ++ (show sock)
-  --req  <- runResourceT $ (sourceSocket sock) $$ (sinkParser Z.getMessage)
-  --putStrLn "Hello conduit... got " ++ (show req)
+  -- Z.Client sock <- Z.connect target_spec typed_id
+  -- putStrLn $ "sock: " ++ (show sock)
+  putStrLn "hi, I compile"
   return ()
   where typed_id = to_ident identity
-
---exec Op {mode=Sub, target_spec=Just target_spec, payload=payload, identity=identity} = do
---  sock <- liftIO $ Z.listen target_spec typed_id
---  liftIO $ Z.close sock
---  return ()
---  where typed_id = to_ident identity
-
---exec Op {mode = mode} = do
---  lift $ putStrLn $ "Sorry " ++ (show mode) ++ " is not supported yet"
---  return ()

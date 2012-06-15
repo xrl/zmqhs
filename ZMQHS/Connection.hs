@@ -18,89 +18,90 @@
 -}
 
 module ZMQHS.Connection
-(
-    connect,
-    close,
-    send,
-    listen,
-    accept,
-    S.SocketType(..),
-    Socket(..)
-)
 where
-import ZMQHS.Frame
-import ZMQHS.Message
-import ZMQHS.ConnSpec
+import ZMQHS.Frame      as X
+import ZMQHS.Message    as X
+import ZMQHS.ConnSpec   as X
 -- I want type sigs to be more general. How can I get rid of this?
 import GHC.Int
-import Control.Monad (guard)
-import Control.Monad.Maybe as MT
 import Control.Applicative hiding (empty)
-import           Data.Word (Word8, Word64)
-import qualified Data.Attoparsec as AP
-import qualified Data.Attoparsec.Binary as APB
-import qualified Network.URI as U
-import qualified Network.Socket  as S
-import qualified Network.Socket.ByteString.Lazy as LSB
+import Control.Monad.IO.Class
+import qualified Network.Socket as S
 import qualified Data.Binary.Put as P
+import           Data.Conduit
+import           Data.Conduit.Attoparsec
+import           Data.Conduit.Network
+import           Data.ByteString (ByteString)
 
-data Socket = Client S.Socket
-            | Server S.Socket Identity
-    deriving (Show)
+data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
+
+--class ZMQSocket conn where
+--    close :: conn -> IO ()
+--instance ZMQSocket Connection where
+--    close (Connection spec sock) = S.sClose sock
+--instance ZMQSocket Listener where
+--    close (Listener spec sock)   = S.sClose sock
+
+connection = undefined
+
+--connection :: ConnSpec -> Identity -> Connection
+--connection connspec id =
+--  return $ Connection (source connspec id) (sink connspec id)
+
+--source = undefined
+
+--source :: MonadIO m => ConnSpec -> Identity -> IO (Source m ByteString)
+source :: ConnSpec -> Identity -> IO (Source IO ByteString)
+source connspec@(servaddr,servport,socktype) id = do
+  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+  let servinfo = head addrinfos
+  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
+  S.connect sock (S.addrAddress servinfo)
+  return $ sourceSocket sock
+
+connspec = case spec "tcp://localhost:4000" of
+  Just a -> a
+  Nothing -> error "no way that didn't work"
+
+sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
+sink connspec@(servaddr,servport,socktype) id = do
+  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+  let servaddrinfo = head addrinfos
+  sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
+  S.bindSocket sock (S.addrAddress servaddrinfo)
+  S.listen sock 1
+  return $ sinkSocket sock
 
 {-
     The main way of getting a Connection. If you want more fine-grained control
     over socket settings feel free to roll your own.
 -}
-connect :: ConnSpec -> Identity -> IO Socket
-connect (servaddr,servport,socktype) id = do
-  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
-  let servinfo = head addrinfos
-  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
-  S.connect sock (S.addrAddress servinfo)
-  return $ Client sock
-
-{-
-    Close the socket
--}
-
-close :: Socket -> IO ()
-close (Client sock)    = S.sClose sock
-close (Server sock id) = S.sClose sock
+--connect :: ConnSpec -> Identity -> IO Connection
+--connect connspec@(servaddr,servport,socktype) id = do
+--  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+--  let servinfo = head addrinfos
+--  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
+--  S.connect sock (S.addrAddress servinfo)
+--  let clientspec = ClientSpec connspec id
+--  return $ Connection clientspec sock
 
 {-
     Send data as you please
 -}
-send :: Socket -> Message -> IO GHC.Int.Int64
-send (Client sock) msg = do
-    let outgoing = P.runPut $ putMessage msg
-    LSB.send sock outgoing
-send (Server sock _) msg = do
-    let outgoing = P.runPut $ putMessage msg
-    LSB.send sock outgoing
+--send :: Connection -> Message -> IO GHC.Int.Int64
+--send (Connection cspec m) msg = do
+--    let outgoing = P.runPut $ putMessage msg
+--    LSB.send sock outgoing
 
-listen :: ConnSpec -> Identity -> IO Socket
-listen (servaddr,servport,socktype) id = do
-    addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
-    -- TODO servaddrinfo could be []. This will fail at runtime. Perhaps IO (Maybe Connection) would be better?
-    let servaddrinfo = head addrinfos
-    sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
-    S.bindSocket sock (S.addrAddress servaddrinfo)
-    S.listen sock 1
-    return $ Server sock id
+--listen :: ConnSpec -> Identity -> IO Listener
+--listen connspec@(servaddr,servport,socktype) id = do
+--    addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+--    let servaddrinfo = head addrinfos
+--    sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
+--    S.bindSocket sock (S.addrAddress servaddrinfo)
+--    S.listen sock 1
+--    let servspec = ServerSpec connspec id
+--    return $ Listener servspec sock
 
-accept :: Socket -> IO (S.Socket, S.SockAddr)
-accept (Server serversock _) = S.accept serversock
-
---readFrame :: S.Socket -> IO Client
---readFrame sock = readFramePart sock $ frameParser . LSB.recv sock 2048
---readFramePart sock (AP.Fail unconsumed ctx reason) = do
---    return Nothing
---readFramePart sock (AP.Partial cont) = do
---    moredata <- LSB.recv sock 2048
---    readFramePart sock $ cont moredata
---readFramePart sock (AP.Done leftover frame) = do
---    return frame
-
---recv :: Connection -> Message
---recv (Server sock id) = do
+--accept :: Socket -> IO (S.Socket, S.SockAddr)
+--accept (Server serversock _) = S.accept serversock

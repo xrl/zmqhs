@@ -22,23 +22,23 @@ data Message = Message Identity [BS.ByteString]
     deriving (Show)
 
 getMessage :: AP.Parser Message
-getMessage = do Message <$> parseIdentity  <*> parseFrames <?> "getMessage"
+getMessage = Message <$> parseIdentity  <*> parseFrames <?> "getMessage"
 
 parseFrames :: AP.Parser [BS.ByteString]
 parseFrames = do
   frame <- frameParser
   case frame of
-    (MoreFrame  payload) -> (payload:) <$> (parseFrames)
+    (MoreFrame  payload) -> (payload :) <$> (parseFrames)
     (FinalFrame payload) -> return [payload]
 
 parseIdentity :: AP.Parser Identity
 parseIdentity = do
   frame <- frameParser
-  return (identify $ getPayload frame)
-  where identify bs = do
-        case BS.length bs of
-          0         -> Anonymous
-          otherwise -> Named bs
+  return $ (identify . frameData) frame
+  where
+    identify bs = case BS.length bs of
+      0         -> Anonymous
+      otherwise -> Named bs
 
 putIdentity :: Identity -> P.PutM ()
 putIdentity Anonymous   = putFrame (FinalFrame (BS.pack []))
@@ -49,6 +49,6 @@ putMessage (Message identity chunks) =  do
   putIdentity identity 
   let len = length chunks
   forM_ (take (len-1) chunks) $ \chunk -> do
-    putLength (BS.length chunk + 1)
+    -- putLength (BS.length chunk + 1)
     putFrame (MoreFrame chunk)
   putFrame (FinalFrame $ last chunks)

@@ -1,11 +1,5 @@
-module ZMQHS (
-  module ZMQHS.Connection,
-  module ZMQHS.Frame,
-  module ZMQHS.Message,
-  module ZMQHS.ConnSpec
-)
-where
-import ZMQHS.Connection
-import ZMQHS.Frame
-import ZMQHS.Message
-import ZMQHS.ConnSpec
+module ZMQHS (module X) where
+import ZMQHS.Connection as X
+import ZMQHS.Frame as X
+import ZMQHS.Message as X
+import ZMQHS.ConnSpec as X

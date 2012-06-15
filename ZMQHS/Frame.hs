@@ -10,7 +10,16 @@
 -- body        = *OCTET
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module ZMQHS.Frame
+(
+  frameParser,
+  frameData,
+  putFrame,
+  debugIt,
+  Frame (..)
+)
 where
+
+import Prelude  hiding (length)
 
 import Control.Applicative hiding (empty)
 
@@ -28,45 +37,35 @@ import qualified Numeric              as N
 
 -- include/zmq.h #define, merge all flags
 
-data Frame = MoreFrame  BS.ByteString
-           | FinalFrame BS.ByteString
+type FrameData = BS.ByteString
+
+data Frame = MoreFrame  FrameData
+           | FinalFrame FrameData
   deriving (Show)
 
-getPayload :: Frame -> BS.ByteString
-getPayload (MoreFrame payload)  = payload
-getPayload (FinalFrame payload) = payload
+frameData :: Frame -> FrameData
+frameData (MoreFrame  payload) = payload
+frameData (FinalFrame payload) = payload
 
-parseFC :: AP.Parser (BS.ByteString -> Frame)
-parseFC = do frameCont <$> AP.anyWord8 <?> "frame continuation"
-  where frameCont x
-         | (.&.) x 0x01 == 0x01 = MoreFrame
-         | otherwise            = FinalFrame
+frameParser :: AP.Parser Frame
+frameParser = do
+  numbytes    <- length
+  constructor <- (<$>) frameConstructor AP.anyWord8
+  let payload_size = numbytes - 1
+  payload <- AP.take payload_size
+  return $ constructor payload
 
-{-                 
-length      = OCTET / (%xFF 8OCTET)
--}
-parseLength :: AP.Parser Int
-parseLength = do
+length :: AP.Parser Int
+length = do
   first_byte <- fromIntegral <$> AP.anyWord8
   if first_byte == 0xFF
     then fromIntegral <$> APB.anyWord64be
     else return first_byte
 
-{-
-more        = %x01
-final       = %x00
-body        = *OCTET
--}
-frameParser :: AP.Parser Frame
-frameParser = do
-  frame_size  <- parseLength
-  constructor <- parseFC
-  let payload_size = frame_size - 1
-  payload <- AP.take payload_size
-  return (constructor payload)
-
---payloadResponse :: BS.ByteString -> BS.ByteString
---payloadResponse = P.runPut . generator 0x7E
+frameConstructor :: Word8 -> (FrameData -> Frame)
+frameConstructor word
+  | (.&.) word 0x01 == 0x01 = MoreFrame
+  | otherwise               = FinalFrame
 
 putFrame :: Frame -> P.Put
 putFrame (MoreFrame bs) = do
@@ -80,17 +79,8 @@ putFrame (FinalFrame bs) = do
 
 putLength :: Integral a => a -> P.Put
 putLength len
- | len < 255 = P.putWord8    $ fromIntegral len
- | otherwise = P.putWord8 0xFF >> (P.putWord64be $ fromIntegral len)
+ | len < 255 = P.putWord8       $ fromIntegral len
+ | otherwise = P.putWord8 0xFF >> (P.putWord64be . fromIntegral) len
 
-generator :: Word8 -> BS.ByteString -> P.Put
-generator header body = do
-    let header_len = 1
-    let body_len   = BS.length body
-    let len = header_len + body_len
-    putLength len    
-    P.putWord8 header
-    P.putByteString body
-
-debug_it :: BS.ByteString -> IO ()
-debug_it = putStrLn . concat . map (flip N.showHex " ") . BS.unpack
+debugIt :: BS.ByteString -> IO ()
+debugIt = putStrLn . concatMap (`N.showHex` " ") . BS.unpack

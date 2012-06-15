@@ -3,28 +3,40 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module ZMQHS.Conduit
-( module X )
+
 where
-import ZMQHS
+import ZMQHS.Message
+import ZMQHS.ConnSpec
+import ZMQHS.Connection
 import           Data.Attoparsec
 import           Data.Conduit            as X
 import           Data.Conduit.Network    as X
 import           Data.Conduit.Attoparsec as X
 import qualified Data.ByteString         as S
 
-sink :: (MonadResource m, MonadThrow m) => Sink S.ByteString m Message
-sink = sinkParser getMessage
+--sink :: Sink S.ByteString IO Message
+--sink = sinkParser getMessage
 
-source socket = sourceSocket socket
+conduitClient str = do
+  case spec str of
+    Just connspec -> do
+      conn <- connection connspec Anonymous
+      putStrLn "hi"
+    Nothing -> do
+      putStrLn "could not make a conn spec"
 
-client connspec = do
-  Client sock <- connect connspec Anonymous
-  return sock
+-- source socket = sourceSocket socket
 
-messages sock = do
-  (source sock) $$ sink
+--client connspec = do
+--  sock <- connect connspec Anonymous
+--  return sock
 
---blah = do
+--client :: Connection -> IO Message
+--client_conduit Client sock = do
+--  (source sock) $$ (sink)
+
+
+--blah = do  
 --  case spec "tcp://0.0.0.0:7890" of
 --    Just connspec -> go connspec
 --    Nothing ->    putStrLn "eh"

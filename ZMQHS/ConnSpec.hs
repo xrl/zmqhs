@@ -12,14 +12,14 @@ type ConnSpec = (S.HostName, S.ServiceName, S.SocketType)
 spec :: String -> Maybe ConnSpec
 spec strspec =
   case U.parseURI strspec of
-    Just uri -> spec_from_uri uri
+    Just uri -> specFromURI uri
     Nothing  -> Nothing
 
-spec_from_uri :: U.URI -> Maybe ConnSpec
-spec_from_uri uri = do
+specFromURI :: U.URI -> Maybe ConnSpec
+specFromURI uri = do
       auth <- U.uriAuthority uri
       sock <- socktype
-      return $ (U.uriRegName auth, port auth, sock)
+      return (U.uriRegName auth, port auth, sock)
       where socktype
               | U.uriScheme uri == "tcp:" = Just S.Stream
               | otherwise = Nothing
