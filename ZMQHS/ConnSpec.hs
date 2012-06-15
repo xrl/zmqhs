@@ -10,10 +10,9 @@ import qualified Network.Socket as S
 type ConnSpec = (S.HostName, S.ServiceName, S.SocketType)
 
 spec :: String -> Maybe ConnSpec
-spec strspec =
-  case U.parseURI strspec of
-    Just uri -> specFromURI uri
-    Nothing  -> Nothing
+spec strspec = do
+  uri <- U.parseURI strspec
+  specFromURI uri
 
 specFromURI :: U.URI -> Maybe ConnSpec
 specFromURI uri = do
