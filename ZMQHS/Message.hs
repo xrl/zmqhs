@@ -16,15 +16,15 @@ import Control.Applicative hiding (empty)
 import Data.Attoparsec((<?>))
 
 data Identity = Anonymous
-              | Named BS.ByteString
+              | Named FrameData
     deriving (Show)
-data Message = Message Identity [BS.ByteString]
+data Message = Message Identity [FrameData]
     deriving (Show)
 
 getMessage :: AP.Parser Message
 getMessage = Message <$> parseIdentity  <*> parseFrames <?> "getMessage"
 
-parseFrames :: AP.Parser [BS.ByteString]
+parseFrames :: AP.Parser [FrameData]
 parseFrames = do
   frame <- frameParser
   case frame of
@@ -40,9 +40,20 @@ parseIdentity = do
       0         -> Anonymous
       otherwise -> Named bs
 
+putIdentityWorker :: (FrameData -> Frame) -> Identity -> P.PutM ()
+putIdentityWorker frametype Anonymous   = putFrame (frametype (BS.pack []))
+putIdentityWorker frametype (Named str) = putFrame (frametype str)
+
+putInitialIdentity :: Identity -> P.PutM ()
+putInitialIdentity = putIdentityWorker (FinalFrame)
+
 putIdentity :: Identity -> P.PutM ()
-putIdentity Anonymous   = putFrame (FinalFrame (BS.pack []))
-putIdentity (Named str) = putFrame (FinalFrame str)
+putIdentity = putIdentityWorker (MoreFrame)
+
+{-
+  connecting for the first time
+  putIdentity (MoreFrame) (Named "xavier's zmq")
+-}
 
 putMessage :: Message -> P.Put
 putMessage (Message identity chunks) =  do
