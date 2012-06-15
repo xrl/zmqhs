@@ -15,7 +15,8 @@ module ZMQHS.Frame
   frameData,
   putFrame,
   debugIt,
-  Frame (..)
+  Frame (..),
+  FrameData (..)
 )
 where
 
@@ -64,7 +65,7 @@ length = do
 
 frameConstructor :: Word8 -> (FrameData -> Frame)
 frameConstructor word
-  | (.&.) word 0x01 == 0x01 = MoreFrame
+  | word .&. 0x01 == 0x01   = MoreFrame
   | otherwise               = FinalFrame
 
 putFrame :: Frame -> P.Put
@@ -82,5 +83,5 @@ putLength len
  | len < 255 = P.putWord8       $ fromIntegral len
  | otherwise = P.putWord8 0xFF >> (P.putWord64be . fromIntegral) len
 
-debugIt :: BS.ByteString -> IO ()
+debugIt :: FrameData -> IO ()
 debugIt = putStrLn . concatMap (`N.showHex` " ") . BS.unpack
