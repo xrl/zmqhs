@@ -35,22 +35,6 @@ import           Data.ByteString (ByteString)
 
 data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
 
---class ZMQSocket conn where
---    close :: conn -> IO ()
---instance ZMQSocket Connection where
---    close (Connection spec sock) = S.sClose sock
---instance ZMQSocket Listener where
---    close (Listener spec sock)   = S.sClose sock
-
-connection = undefined
-
---connection :: ConnSpec -> Identity -> Connection
---connection connspec id =
---  return $ Connection (source connspec id) (sink connspec id)
-
---source = undefined
-
---source :: MonadIO m => ConnSpec -> Identity -> IO (Source m ByteString)
 source :: ConnSpec -> Identity -> IO (Source IO ByteString)
 source connspec@(servaddr,servport,socktype) id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
@@ -58,10 +42,6 @@ source connspec@(servaddr,servport,socktype) id = do
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
   return $ sourceSocket sock
-
-connspec = case spec "tcp://localhost:7890" of
-  Just a -> a
-  Nothing -> error "no way that didn't work"
 
 sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
 sink connspec@(servaddr,servport,socktype) id = do
@@ -77,37 +57,12 @@ connect source_promise = do
   source <- source_promise
   ($$) source (sinkParser getMessage)
 
+connspec = case spec "tcp://0.0.0.0:7890" of
+  Just a -> a
+  Nothing -> error "no way that didn't work"
 
-{-
-    The main way of getting a Connection. If you want more fine-grained control
-    over socket settings feel free to roll your own.
--}
---connect :: ConnSpec -> Identity -> IO Connection
---connect connspec@(servaddr,servport,socktype) id = do
---  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
---  let servinfo = head addrinfos
---  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
---  S.connect sock (S.addrAddress servinfo)
---  let clientspec = ClientSpec connspec id
---  return $ Connection clientspec sock
-
-{-
-    Send data as you please
--}
---send :: Connection -> Message -> IO GHC.Int.Int64
---send (Connection cspec m) msg = do
---    let outgoing = P.runPut $ putMessage msg
---    LSB.send sock outgoing
-
---listen :: ConnSpec -> Identity -> IO Listener
---listen connspec@(servaddr,servport,socktype) id = do
---    addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
---    let servaddrinfo = head addrinfos
---    sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
---    S.bindSocket sock (S.addrAddress servaddrinfo)
---    S.listen sock 1
---    let servspec = ServerSpec connspec id
---    return $ Listener servspec sock
-
---accept :: Socket -> IO (S.Socket, S.SockAddr)
---accept (Server serversock _) = S.accept serversock
+do_connect = do
+  src <- source connspec Anonymous
+  putStrLn "connecting... "
+  src $$ sinkParser getMessage
+  putStrLn "connected!"
