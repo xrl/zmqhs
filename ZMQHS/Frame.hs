@@ -53,8 +53,8 @@ frameData :: Frame -> FrameData
 frameData (MoreFrame  payload) = payload
 frameData (FinalFrame payload) = payload
 
-frameLength :: Frame -> Int
-frameLength frame = BS.length (frameData frame)
+frameLength :: Num a => Frame -> a
+frameLength frame = (fromIntegral . BS.length) (frameData frame)
 
 frameParser :: AP.Parser Frame
 frameParser = do
@@ -103,8 +103,8 @@ buildFrame frame =
 
 buildLength :: Frame -> BSBuilder.Builder
 buildLength frame
- | (frameLength frame) < 256 = IntBuilder.fromInt8    (fromIntegral $ frameLength frame)
- | otherwise                 = IntBuilder.fromInt64be (fromIntegral $ frameLength frame)
+ | (frameLength frame) < 256 = IntBuilder.fromInt8    (1+(frameLength frame))
+ | otherwise                 = IntBuilder.fromInt64be (1+(frameLength frame))
 
 buildFrameType :: Frame -> BSBuilder.Builder
 buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x00
