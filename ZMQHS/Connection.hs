@@ -40,25 +40,12 @@ import           Blaze.ByteString.Builder
 
 data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
 
---client :: (IO (Source IO ByteString)) -> IO Message
---client source_promise = do
---  source <- source_promise
---  ($$) source (sinkParser getMessage)
-
---sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
---sink connspec@(servaddr,servport,socktype) id = do
---  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
---  let servaddrinfo = head addrinfos
---  sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
---  S.bindSocket sock (S.addrAddress servaddrinfo)
---  S.listen sock 1
---  return $ sinkSocket sock
-
 connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
-client :: (MonadIO m, MonadUnsafeIO m, MonadThrow m) => ConnSpec -> Identity -> IO ( (Source m Message), (Sink Message m ()))
+--  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
+client :: ConnSpec -> Identity -> IO ( (Source (IO) Message), (Sink Message (IO) ()))
 client connspec@(servaddr,servport,socktype) id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
@@ -78,13 +65,7 @@ messageSource m = HaveOutput (Done Nothing ())  (return ()) m
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
 
---getMessageFromSource :: Source m ByteString -> Message
---getMessageFromSource s = runResourceT $ s $$ sinkParser getMessage
-
---do_connect = do
-  --(src,snk) <- client connspec Anonymous
-  --putStrLn "connecting... "
-  
-  
-  --src $$+ sinkParser getMessage
- -- putStrLn "connected!"
+do_connect = do
+  putStrLn "connecting... "
+  (src,snk) <- client connspec Anonymous
+  putStrLn "connected!"
