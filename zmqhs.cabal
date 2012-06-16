@@ -53,9 +53,9 @@ Library
   -- Packages needed in order to build this package.
   Build-depends: base, binary, hex, bytestring,
                  attoparsec, attoparsec-binary,
-                 conduit, attoparsec-conduit, network-conduit,
+                 conduit, attoparsec-conduit, network-conduit, blaze-builder-conduit,
                  network,
-                 MaybeT
+                 MaybeT, transformers
   
   -- Modules not exported by this package.
   -- Other-modules:       
@@ -69,4 +69,4 @@ Library
 
 Executable blaster
   Main-Is: test/blaster/Blaster.hs
-  Build-Depends: base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring, zmqhs, conduit, attoparsec-conduit, network-conduit
+  Build-Depends: base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring, zmqhs, conduit, attoparsec-conduit, network-conduit, transformers
