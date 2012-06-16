@@ -19,9 +19,9 @@
 
 module ZMQHS.Connection
 where
-import ZMQHS.Frame      as X
-import ZMQHS.Message    as X
-import ZMQHS.ConnSpec   as X
+import ZMQHS.Frame      
+import ZMQHS.Message    
+import ZMQHS.ConnSpec   
 -- I want type sigs to be more general. How can I get rid of this?
 import GHC.Int
 import Control.Applicative hiding (empty)
@@ -32,7 +32,9 @@ import qualified Data.Binary.Put as P
 import           Data.Conduit
 import           Data.Conduit.Attoparsec
 import           Data.Conduit.Network
+import           Data.Conduit.Blaze
 import           Data.ByteString (ByteString)
+import           Blaze.ByteString.Builder
 
 data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
 
@@ -54,23 +56,32 @@ connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
---client :: ConnSpec -> Identity -> IO ( (Source IO ByteString), (Sink ByteString a IO))
---client connspec@(servaddr,servport,socktype) id = do
---  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
---  let servinfo = head addrinfos
---  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
---  S.connect sock (S.addrAddress servinfo)
---  return $ (sourceSocket sock,sinkSocket sock)
-client = undefined
+client :: ConnSpec -> Identity -> IO ( (Source m Message), (Sink Message a (IO())))
+client connspec@(servaddr,servport,socktype) id = do
+  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+  let servinfo = head addrinfos
+  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
+  S.connect sock (S.addrAddress servinfo)
+  let source = sourceSocket sock $$ sinkParser getMessage
+  let sink = messageToBuilderConduit =$ builderToByteString =$ sinkSocket sock
+  return $ (source,sink)
 
---handshake :: MonadResource m => Sink ByteString m a -> Sink ByteString m a
---handshake NeedInput{} =
---  let action = liftIO $ putStrLn "hi!"
---  in PipeM action (lift action)
 handshake = undefined
+
+messageSource :: Message -> Source m Message
+messageSource m = Done Nothing m
+--Source
+--    { sourcePull = Open Closed
+--    , sourceClose = return ()
+--    }
+
+messageToBuilderConduit :: Conduit Message m Builder
+messageToBuilderConduit = map buildMessage
 
 do_connect = do
   (src,snk) <- client connspec Anonymous
   putStrLn "connecting... "
+  
+  
   src $$+ sinkParser getMessage
   putStrLn "connected!"
