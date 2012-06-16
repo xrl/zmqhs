@@ -104,7 +104,8 @@ buildFrame frame =
 buildLength :: Frame -> BSBuilder.Builder
 buildLength frame
  | (frameLength frame) < 256 = IntBuilder.fromInt8    (1+(frameLength frame))
- | otherwise                 = IntBuilder.fromInt64be (1+(frameLength frame))
+ | otherwise                 = IntBuilder.fromInt8 0xFF
+                            <> IntBuilder.fromInt64be (1+(frameLength frame))
 
 buildFrameType :: Frame -> BSBuilder.Builder
 buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x00
