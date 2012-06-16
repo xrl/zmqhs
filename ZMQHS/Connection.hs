@@ -35,13 +35,10 @@ import           Data.ByteString (ByteString)
 
 data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
 
-source :: ConnSpec -> Identity -> IO (Source IO ByteString)
-source connspec@(servaddr,servport,socktype) id = do
-  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
-  let servinfo = head addrinfos
-  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
-  S.connect sock (S.addrAddress servinfo)
-  return $ sourceSocket sock
+client :: (IO (Source IO ByteString)) -> IO Message
+client source_promise = do
+  source <- source_promise
+  ($$) source (sinkParser getMessage)
 
 sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
 sink connspec@(servaddr,servport,socktype) id = do
@@ -52,17 +49,20 @@ sink connspec@(servaddr,servport,socktype) id = do
   S.listen sock 1
   return $ sinkSocket sock
 
-connect :: (IO (Source IO ByteString)) -> IO Message
-connect source_promise = do
-  source <- source_promise
-  ($$) source (sinkParser getMessage)
-
 connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
+source :: ConnSpec -> Identity -> IO (Source IO ByteString)
+source connspec@(servaddr,servport,socktype) id = do
+  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+  let servinfo = head addrinfos
+  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
+  S.connect sock (S.addrAddress servinfo)
+  return $ sourceSocket sock
+
 do_connect = do
   src <- source connspec Anonymous
   putStrLn "connecting... "
-  src $$ sinkParser getMessage
+  src $$+ sinkParser getMessage
   putStrLn "connected!"
