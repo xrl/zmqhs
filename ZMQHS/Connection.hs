@@ -69,6 +69,9 @@ messageToBuilderConduit = CL.map buildMessage
 do_connect  = do
   putStrLn "connecting... "
   (src,snk) <- client connspec Anonymous
-  blah <- runResourceT (messageSource (Message Anonymous ["not blank"]) $$ snk) 
-  halb <- runResourceT (messageSource (Message Anonymous ["hi"]) $$ snk)
+  blah <- runResourceT (messageSource (Message Anonymous ["ONE","ONE-2"]) $$ snk) 
+  halb <- runResourceT (messageSource (Message Anonymous ["TWO"]) $$ snk)
+  asdf <- runResourceT (messageSource (Message Anonymous ["THREE"]) $$ snk)
+  fdsa <- runResourceT (messageSource (Message Anonymous ["FOUR"]) $$ snk)
+  a123 <- runResourceT (messageSource (Message Anonymous ["FIVE"]) $$ snk)
   putStrLn "connected!"

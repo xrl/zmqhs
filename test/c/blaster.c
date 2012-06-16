@@ -96,7 +96,6 @@ void free_msg(void *data, void *hint){
 void recv_msg(void* sock){
   int retval = 0;
   zmq_msg_t msg;
-  zmq_msg_init(&msg);
 
   retval = zmq_bind(sock,operation.destination);
   if(retval != 0){
@@ -135,35 +134,40 @@ void recv_msg(void* sock){
 
   puts("Server up. Waiting for message.");
 
-  retval = zmq_recv(sock,&msg,0);
-  if(retval != 0){
-    switch(errno){
-      case EAGAIN:
-        puts("zmq_connect EAGAIN");
-        break;
-      case ENOTSUP:
-        puts("zmq_connect ENOTSUP");
-        break;
-      case EFSM:
-        puts("zmq_connect EFSM");
-        break;
-      case ETERM:
-        puts("zmq_connect ETERM");
-        break;
-      case ENOTSOCK:
-        puts("zmq_connect ENOTSOCK");
-        break;
-      case EINTR:
-        puts("zmq_connect EINTR");
-        break;
-      case EFAULT:
-      default:
-        puts("zmq_recv errno default");
-    }
-  }
+  while(1){
+    zmq_msg_init(&msg);
+    
+    retval = zmq_recv(sock,&msg,0);
 
-  printf("oneframe receiver got %.*s\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg));
-  zmq_msg_close(&msg);
+    if(retval != 0){
+      switch(errno){
+        case EAGAIN:
+          puts("zmq_connect EAGAIN");
+          break;
+        case ENOTSUP:
+          puts("zmq_connect ENOTSUP");
+          break;
+        case EFSM:
+          puts("zmq_connect EFSM");
+          break;
+        case ETERM:
+          puts("zmq_connect ETERM");
+          break;
+        case ENOTSOCK:
+          puts("zmq_connect ENOTSOCK");
+          break;
+        case EINTR:
+          puts("zmq_connect EINTR");
+          break;
+        case EFAULT:
+        default:
+          puts("zmq_recv errno default");
+      }
+    }
+
+    printf("oneframe receiver got %.*s\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg));
+    zmq_msg_close(&msg);
+  }
 }
 
 void connect_socket(void* sock, char* target){
