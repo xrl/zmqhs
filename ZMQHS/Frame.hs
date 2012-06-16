@@ -8,7 +8,6 @@
 -- more        = %x01
 -- final       = %x00
 -- body        = *OCTET
-{-# LANGUAGE NoMonomorphismRestriction #-}
 module ZMQHS.Frame
 (
   frameParser,
