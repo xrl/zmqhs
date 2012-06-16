@@ -52,8 +52,8 @@ client connspec@(servaddr,servport,socktype) id = do
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
   let parserConduit = sequence $ sinkParser getMessage
-  let source = sourceSocket sock $= parserConduit
-  let sink = messageToBuilderConduit =$ builderToByteString =$ sinkSocket sock
+  let source        = sourceSocket sock       $= parserConduit
+  let sink          = messageToBuilderConduit =$ builderToByteString =$ sinkSocket sock
   return $ (source,sink)
 
 handshake = undefined
