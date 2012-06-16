@@ -13,7 +13,7 @@ module ZMQHS.Frame
 (
   frameParser,
   frameData,
-  putFrame,
+  frameBuilder,
   debugIt,
   Frame (..),
   FrameData (..)
@@ -24,12 +24,17 @@ import Prelude  hiding (length)
 
 import Control.Applicative hiding (empty)
 
+import Data.Monoid (Monoid, mappend)
+
 import           Data.Word (Word8)
 import           Data.Bits
 import qualified Data.Attoparsec as AP
 import Data.Attoparsec((<?>))
 import qualified Data.Attoparsec.Binary as APB
+
 import qualified Data.Binary.Put as P
+import qualified Blaze.ByteString.Builder as BSBuilder
+import qualified Blaze.ByteString.Builder.Int as IntBuilder
 
 import Debug.Trace
 
@@ -48,16 +53,19 @@ frameData :: Frame -> FrameData
 frameData (MoreFrame  payload) = payload
 frameData (FinalFrame payload) = payload
 
+frameLength :: Frame -> Int
+frameLength frame = BS.length (frameData frame)
+
 frameParser :: AP.Parser Frame
 frameParser = do
-  numbytes    <- length
-  constructor <- (<$>) frameConstructor AP.anyWord8
+  numbytes    <- parseLength
+  constructor <- frameConstructor <$> AP.anyWord8
   let payload_size = numbytes - 1
   payload <- AP.take payload_size
   return $ constructor payload
 
-length :: AP.Parser Int
-length = do
+parseLength :: AP.Parser Int
+parseLength = do
   first_byte <- fromIntegral <$> AP.anyWord8
   if first_byte == 0xFF
     then fromIntegral <$> APB.anyWord64be
@@ -68,20 +76,42 @@ frameConstructor word
   | word .&. 0x01 == 0x01   = MoreFrame
   | otherwise               = FinalFrame
 
-putFrame :: Frame -> P.Put
-putFrame (MoreFrame bs) = do
-  putLength (1+BS.length bs)
-  P.putWord8 0x01
-  P.putByteString bs
-putFrame (FinalFrame bs) = do
-  putLength (1+BS.length bs)
-  P.putWord8 0x00
-  P.putByteString bs 
+--putFrame :: Frame -> P.Put
+--putFrame (MoreFrame bs) = do
+--  putLength (1+BS.length bs)
+--  P.putWord8 0x01
+--  P.putByteString bs
+--putFrame (FinalFrame bs) = do
+--  putLength (1+BS.length bs)
+--  P.putWord8 0x00
+--  P.putByteString bs 
 
-putLength :: Integral a => a -> P.Put
-putLength len
- | len < 255 = P.putWord8       $ fromIntegral len
- | otherwise = P.putWord8 0xFF >> (P.putWord64be . fromIntegral) len
+--putLength :: Integral a => a -> P.Put
+--putLength len
+-- | len < 255 = P.putWord8       $ fromIntegral len
+-- | otherwise = P.putWord8 0xFF >> (P.putWord64be . fromIntegral) len
+
+infixr 5 <>
+(<>) :: Monoid m => m -> m -> m
+(<>) = mappend
+
+frameBuilder :: Frame -> BSBuilder.Builder
+frameBuilder frame =
+  buildLength frame
+  <> buildFrameType frame
+  <> buildFrameData frame
+
+buildLength :: Frame -> BSBuilder.Builder
+buildLength frame
+ | (frameLength frame) < 256 = IntBuilder.fromInt8    (fromIntegral $ frameLength frame)
+ | otherwise                 = IntBuilder.fromInt64be (fromIntegral $ frameLength frame)
+
+buildFrameType :: Frame -> BSBuilder.Builder
+buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x00
+buildFrameType (FinalFrame _) = IntBuilder.fromInt8 0x01
+
+buildFrameData :: Frame -> BSBuilder.Builder
+buildFrameData frame = BSBuilder.fromByteString (frameData frame)
 
 debugIt :: FrameData -> IO ()
 debugIt = putStrLn . concatMap (`N.showHex` " ") . BS.unpack
