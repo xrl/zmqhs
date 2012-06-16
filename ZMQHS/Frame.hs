@@ -76,21 +76,6 @@ frameConstructor word
   | word .&. 0x01 == 0x01   = MoreFrame
   | otherwise               = FinalFrame
 
---putFrame :: Frame -> P.Put
---putFrame (MoreFrame bs) = do
---  putLength (1+BS.length bs)
---  P.putWord8 0x01
---  P.putByteString bs
---putFrame (FinalFrame bs) = do
---  putLength (1+BS.length bs)
---  P.putWord8 0x00
---  P.putByteString bs 
-
---putLength :: Integral a => a -> P.Put
---putLength len
--- | len < 255 = P.putWord8       $ fromIntegral len
--- | otherwise = P.putWord8 0xFF >> (P.putWord64be . fromIntegral) len
-
 infixr 5 <>
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
@@ -108,8 +93,8 @@ buildLength frame
                             <> IntBuilder.fromInt64be (1+(frameLength frame))
 
 buildFrameType :: Frame -> BSBuilder.Builder
-buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x00
-buildFrameType (FinalFrame _) = IntBuilder.fromInt8 0x01
+buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x01
+buildFrameType (FinalFrame _) = IntBuilder.fromInt8 0x00
 
 buildFrameData :: Frame -> BSBuilder.Builder
 buildFrameData frame = BSBuilder.fromByteString (frameData frame)
