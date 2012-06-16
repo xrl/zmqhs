@@ -17,6 +17,8 @@
     body        = *OCTET
 -}
 
+{-# LANGUAGE OverloadedStrings #-}
+
 module ZMQHS.Connection
 where
 import ZMQHS.Frame      
@@ -64,10 +66,9 @@ messageSource m = HaveOutput (Done Nothing ())  (return ()) m
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
 
-tell_me = ($$) (messageSource (Message Anonymous []))
-
-do_connect = do
+do_connect  = do
   putStrLn "connecting... "
   (src,snk) <- client connspec Anonymous
-  runResourceT (tell_me snk)
+  blah <- runResourceT (messageSource (Message Anonymous ["not blank"]) $$ snk) 
+  halb <- runResourceT (messageSource (Message Anonymous ["hi"]) $$ snk)
   putStrLn "connected!"
