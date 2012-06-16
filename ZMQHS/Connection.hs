@@ -45,7 +45,7 @@ connspec = case spec "tcp://0.0.0.0:7890" of
   Nothing -> error "no way that didn't work"
 
 --  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
-client :: ConnSpec -> Identity -> IO ( (Source (IO) Message), (Sink Message (IO) ()))
+client :: ConnSpec -> Identity -> IO ( (Source (ResourceT IO) Message), (Sink Message (ResourceT IO) ()))
 client connspec@(servaddr,servport,socktype) id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
@@ -61,11 +61,13 @@ handshake = undefined
 messageSource :: Monad m => Message -> Source m Message
 messageSource m = HaveOutput (Done Nothing ())  (return ()) m
 
-
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
+
+tell_me = ($$) (messageSource (Message Anonymous []))
 
 do_connect = do
   putStrLn "connecting... "
   (src,snk) <- client connspec Anonymous
+  runResourceT (tell_me snk)
   putStrLn "connected!"
