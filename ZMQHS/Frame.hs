@@ -13,8 +13,9 @@ module ZMQHS.Frame
 (
   frameParser,
   frameData,
-  frameBuilder,
+  buildFrame,
   debugIt,
+  (<>),
   Frame (..),
   FrameData (..)
 )
@@ -95,8 +96,8 @@ infixr 5 <>
 (<>) :: Monoid m => m -> m -> m
 (<>) = mappend
 
-frameBuilder :: Frame -> BSBuilder.Builder
-frameBuilder frame =
+buildFrame :: Frame -> BSBuilder.Builder
+buildFrame frame =
   buildLength frame
   <> buildFrameType frame
   <> buildFrameData frame

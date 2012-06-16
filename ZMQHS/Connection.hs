@@ -54,19 +54,20 @@ connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
-client :: ConnSpec -> Identity -> IO ( (Source IO ByteString), (Sink ByteString a IO))
-client connspec@(servaddr,servport,socktype) id = do
-  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
-  let servinfo = head addrinfos
-  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
-  S.connect sock (S.addrAddress servinfo)
-  return $ (sourceSocket sock,sinkSocket sock)
+--client :: ConnSpec -> Identity -> IO ( (Source IO ByteString), (Sink ByteString a IO))
+--client connspec@(servaddr,servport,socktype) id = do
+--  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+--  let servinfo = head addrinfos
+--  sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
+--  S.connect sock (S.addrAddress servinfo)
+--  return $ (sourceSocket sock,sinkSocket sock)
+client = undefined
 
-handshake :: MonadResource m => Sink ByteString m a -> Sink ByteString m a
-handshake NeedInput{} =
-  let action = liftIO $ putStrLn "hi!"
-  in PipeM action (lift action)
-
+--handshake :: MonadResource m => Sink ByteString m a -> Sink ByteString m a
+--handshake NeedInput{} =
+--  let action = liftIO $ putStrLn "hi!"
+--  in PipeM action (lift action)
+handshake = undefined
 
 do_connect = do
   (src,snk) <- client connspec Anonymous
