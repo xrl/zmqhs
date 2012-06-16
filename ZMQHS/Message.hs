@@ -23,11 +23,11 @@ import Data.Attoparsec((<?>))
 data Identity = Anonymous
               | Named FrameData
     deriving (Show)
-data Message = Message Identity [FrameData]
+data Message = Message [FrameData]
     deriving (Show)
 
 getMessage :: AP.Parser Message
-getMessage = Message <$> parseIdentity  <*> parseFrames <?> "getMessage"
+getMessage = Message <$> parseFrames <?> "getMessage"
 
 parseFrames :: AP.Parser [FrameData]
 parseFrames = do
@@ -45,29 +45,14 @@ parseIdentity = do
       0         -> Anonymous
       otherwise -> Named bs
 
---putIdentityWorker :: (FrameData -> Frame) -> Identity -> P.PutM ()
---putIdentityWorker frametype Anonymous   = putFrame (frametype (BS.pack []))
---putIdentityWorker frametype (Named str) = putFrame (frametype str)
-
---putInitialIdentity :: Identity -> P.PutM ()
---putInitialIdentity = putIdentityWorker (FinalFrame)
-
 buildIdentityMessage :: Identity -> BSBuilder.Builder
-buildIdentityMessage identity = buildMessage (Message identity [])
+buildIdentityMessage Anonymous        = buildAllFrames [BS.pack []]
+buildIdentityMessage (Named identity) = buildAllFrames [identity]
 
 buildMessage :: Message -> BSBuilder.Builder
-buildMessage (Message Anonymous chunks) =  do
-  buildAllFrames ((BS.pack []):chunks)
-buildMessage (Message (Named name) chunks) =  do
-  buildAllFrames (name:chunks)
+buildMessage (Message chunks) =  do
+  buildAllFrames chunks
 
 buildAllFrames :: [FrameData] -> BSBuilder.Builder
 buildAllFrames (x:[]) =  buildFrame (FinalFrame x)
 buildAllFrames (x:xs) = (buildFrame (MoreFrame x)) <> (buildAllFrames xs)
-
-
---let len = length chunks
---forM_ (take (len-1) chunks) $ \chunk -> do
---  -- putLength (BS.length chunk + 1)
---  (putFrame (MoreFrame chunk)) <>
---putFrame (FinalFrame $ last chunks)

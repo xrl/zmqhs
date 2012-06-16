@@ -53,15 +53,19 @@ client connspec@(servaddr,servport,socktype) id = do
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
-  let parserConduit = sequence $ sinkParser getMessage
-  let source        = sourceSocket sock       $= parserConduit
-  let sink          = messageToBuilderConduit =$ builderToByteString =$ sinkSocket sock
-  return $ (source,sink)
+  let parserConduit  = sequence $ sinkParser getMessage
+  let ungreeted_sock = sourceSocket sock
+  let greeted_sock   = ungreeted_sock $= parserConduit
+  let ungreeted_sink = builderToByteString =$ sinkSocket sock
+  blah <- runResourceT $ (identitySource Anonymous) $$ ungreeted_sink
+  let greeted_sink   = messageToBuilderConduit =$ ungreeted_sink
+  return $ (greeted_sock,greeted_sink)
 
-handshake = undefined
+identitySource :: Monad m => Identity -> Source m Builder
+identitySource identity = HaveOutput (Done Nothing ()) (return ()) (buildIdentityMessage identity)
 
 messageSource :: Monad m => Message -> Source m Message
-messageSource m = HaveOutput (Done Nothing ())  (return ()) m
+messageSource message   = HaveOutput (Done Nothing ()) (return ()) message
 
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
@@ -69,9 +73,9 @@ messageToBuilderConduit = CL.map buildMessage
 do_connect  = do
   putStrLn "connecting... "
   (src,snk) <- client connspec Anonymous
-  blah <- runResourceT (messageSource (Message Anonymous ["ONE","ONE-2"]) $$ snk) 
-  halb <- runResourceT (messageSource (Message Anonymous ["TWO"]) $$ snk)
-  asdf <- runResourceT (messageSource (Message Anonymous ["THREE"]) $$ snk)
-  fdsa <- runResourceT (messageSource (Message Anonymous ["FOUR"]) $$ snk)
-  a123 <- runResourceT (messageSource (Message Anonymous ["FIVE"]) $$ snk)
+  blah <- runResourceT (messageSource (Message []) $$ snk)
+  halb <- runResourceT (messageSource (Message ["TWO"]) $$ snk)
+  asdf <- runResourceT (messageSource (Message ["THREE"]) $$ snk)
+  fdsa <- runResourceT (messageSource (Message ["FOUR"]) $$ snk)
+  a123 <- runResourceT (messageSource (Message ["FIVE"]) $$ snk)
   putStrLn "connected!"
