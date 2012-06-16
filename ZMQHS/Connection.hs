@@ -25,7 +25,8 @@ import ZMQHS.ConnSpec   as X
 -- I want type sigs to be more general. How can I get rid of this?
 import GHC.Int
 import Control.Applicative hiding (empty)
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Class (lift)
 import qualified Network.Socket as S
 import qualified Data.Binary.Put as P
 import           Data.Conduit
@@ -35,34 +36,40 @@ import           Data.ByteString (ByteString)
 
 data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
 
-client :: (IO (Source IO ByteString)) -> IO Message
-client source_promise = do
-  source <- source_promise
-  ($$) source (sinkParser getMessage)
+--client :: (IO (Source IO ByteString)) -> IO Message
+--client source_promise = do
+--  source <- source_promise
+--  ($$) source (sinkParser getMessage)
 
-sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
-sink connspec@(servaddr,servport,socktype) id = do
-  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
-  let servaddrinfo = head addrinfos
-  sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
-  S.bindSocket sock (S.addrAddress servaddrinfo)
-  S.listen sock 1
-  return $ sinkSocket sock
+--sink :: ConnSpec -> Identity -> IO (Sink ByteString IO ())
+--sink connspec@(servaddr,servport,socktype) id = do
+--  addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
+--  let servaddrinfo = head addrinfos
+--  sock <- S.socket (S.addrFamily servaddrinfo) socktype S.defaultProtocol
+--  S.bindSocket sock (S.addrAddress servaddrinfo)
+--  S.listen sock 1
+--  return $ sinkSocket sock
 
 connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
-source :: ConnSpec -> Identity -> IO (Source IO ByteString)
-source connspec@(servaddr,servport,socktype) id = do
+client :: ConnSpec -> Identity -> IO ( (Source IO ByteString), (Sink ByteString a IO))
+client connspec@(servaddr,servport,socktype) id = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
-  return $ sourceSocket sock
+  return $ (sourceSocket sock,sinkSocket sock)
+
+handshake :: MonadResource m => Sink ByteString m a -> Sink ByteString m a
+handshake NeedInput{} =
+  let action = liftIO $ putStrLn "hi!"
+  in PipeM action (lift action)
+
 
 do_connect = do
-  src <- source connspec Anonymous
+  (src,snk) <- client connspec Anonymous
   putStrLn "connecting... "
   src $$+ sinkParser getMessage
   putStrLn "connected!"
