@@ -47,7 +47,7 @@ Cabal-version:       >=1.8
 Library
   Hs-Source-Dirs: .
   -- Modules exported by the library.
-  Exposed-modules: ZMQHS ZMQHS.Conduit
+  Exposed-modules: ZMQHS
   Extensions: ScopedTypeVariables
   
   -- Packages needed in order to build this package.
