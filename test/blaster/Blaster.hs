@@ -8,6 +8,7 @@ import qualified ZMQHS as Z
 
 import Control.Monad.Trans
 import Control.Monad.Maybe
+import Control.Concurrent
 
 import Data.ByteString.Char8 (pack)
 
@@ -71,7 +72,16 @@ exec Op {mode=Sub, target_spec=Just target_spec, payload=payload, identity=ident
   return ()
 exec Op {mode=Pub, target_spec=Just target_spec, payload=payload, identity=identity,repetitions=rep} = do
   conn <- Z.client target_spec (to_ident identity)
+  thread <- forkIO $ readAllMessages conn
   foldr (>>) (return ()) (take rep $ repeat (Z.sendMessage conn (Z.Message [pack payload])))
   return ()
 exec Op {target_spec=Nothing} = do
-  putStrLn "Sorry, please enter a valid target specification (e.g., \"tcp://localhost:7890\""
+  putStrLn "Sorry, please enter a valid target specification (e.g., \"tcp://localhost:7890\")"
+
+readAllMessages :: Z.Connection -> IO ()
+readAllMessages conn = do
+  foldr (>>) (return ()) $ repeat $ do
+    msg <- Z.recvMessage conn
+    case msg of
+      Just msg -> print "."
+      Nothing  -> return ()
