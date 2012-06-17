@@ -12,6 +12,7 @@ module ZMQHS.Frame
 (
   frameParser,
   frameData,
+  frameLength,
   buildFrame,
   debugIt,
   (<>),

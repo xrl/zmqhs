@@ -34,6 +34,11 @@ parseFrames = do
     (MoreFrame  payload) -> (payload :) <$> (parseFrames)
     (FinalFrame payload) -> return [payload]
 
+pureIdentity :: FrameData -> Identity
+pureIdentity frame
+  | BS.length frame == 0 = Anonymous
+  | otherwise            = Named frame
+
 parseIdentity :: AP.Parser Identity
 parseIdentity = do
   frame <- frameParser

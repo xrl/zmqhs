@@ -73,22 +73,10 @@ client (servaddr,servport,socktype) identity = do
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
 
-  -- Setup the outgoing data stream
-  let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  _ <- runResourceT $ (identitySource identity) $$ ungreeted_sink
-  let greeted_sink   = messageToBuilderConduit =$ ungreeted_sink
+  greeted_sink <- greetedSink sock identity
+  (greeted_source,_) <- greetedSource sock
 
-  -- Setup the incoming data stream
-  let ungreeted_unid_source = sourceSocket sock
-    -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
-  let get_identity = ungreeted_unid_source $$ (sinkParser getMessage)
-  (Message (their_ident:[])) <- runResourceT $ get_identity
-  putStrLn $ "The server's identity: " ++ show their_ident
-  let ungreeted_source = ungreeted_unid_source
-
-  let greeted_message_source   = ungreeted_source $= messageParserConduit
-
-  return $ Connection greeted_message_source greeted_sink sock
+  return $ Connection greeted_source greeted_sink sock
 
 connspec :: ConnSpec
 connspec =
