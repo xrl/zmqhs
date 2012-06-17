@@ -1,26 +1,9 @@
 -- Copyright:  Xavier Lange, 2011
 -- License:    BSD
-
-{-
-    ZMQ ABNF
-    connection  = greeting content
-    greeting    = anonymous / identity
-    anonymous   = %x01 final
-    identity    = length final (%x01-ff) *OCTET
-    
-    message     = *more-frame final-frame
-    more-frame  = length more body
-    final-frame = length final body
-    length      = OCTET / (%xFF 8OCTET)
-    more        = %x01
-    final       = %x00
-    body        = *OCTET
--}
-
-{-# LANGUAGE OverloadedStrings #-}
-
 module ZMQHS.Connection
 (
+  server,
+  accept,
   client,
   Connection(..),
   recvMessage,
@@ -48,23 +31,20 @@ data Server        = Server Identity S.Socket
 
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
-  -- Send our identity
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  _ <- runResourceT $ (identitySource identity) $$ ungreeted_sink
-  let greeted_sink   = messageToBuilderConduit =$ ungreeted_sink
-  return greeted_sink
+  _ <- runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
+  let greeted_message_sink   = (CL.map buildMessage) =$ ungreeted_sink
+  return greeted_message_sink
 
 greetedSource :: S.Socket -> IO (MessageSource,Identity)
 greetedSource sock = do
-  -- Setup the incoming data stream
   let ungreeted_unid_source = sourceSocket sock
     -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
   let get_identity = ungreeted_unid_source $$ (sinkParser getMessage)
   (Message (frame:[])) <- runResourceT $ get_identity
-  let greeted_message_source   = ungreeted_unid_source $= messageParserConduit
+  let greeted_message_source   = ungreeted_unid_source $= (sequence $ sinkParser getMessage)
   return (greeted_message_source,pureIdentity frame)
 
---  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
 client :: ConnSpec -> Identity -> IO Connection
 client (servaddr,servport,socktype) identity = do
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
@@ -74,14 +54,8 @@ client (servaddr,servport,socktype) identity = do
 
   greeted_sink <- greetedSink sock identity
   (greeted_source,_) <- greetedSource sock
-
+  
   return $ Connection greeted_source greeted_sink sock
-
-connspec :: ConnSpec
-connspec =
-  case spec "tcp://0.0.0.0:7890" of
-    Just specy -> specy
-    Nothing -> error "never gonna happen!"
 
 server :: ConnSpec -> Identity -> IO Server
 server blah@(hostname,servname,_) identity = do
@@ -95,15 +69,6 @@ accept (Server identity listenersock) = do
   greeted_sink <- greetedSink sock identity
   (greeted_source,_) <- greetedSource sock
   return $ Connection greeted_source greeted_sink sock
-
-messageParserConduit :: Pipe ByteString Message (ResourceT IO) ()
-messageParserConduit  = sequence $ sinkParser getMessage
-
-identitySource :: Identity -> Source (ResourceT IO) Builder
-identitySource identity = yield $ buildIdentityMessage identity
-
-messageToBuilderConduit :: Monad m => Conduit Message m Builder
-messageToBuilderConduit = CL.map buildMessage
 
 recvMessage :: Connection -> IO (Maybe Message)
 recvMessage     (Connection src _ _)      = runResourceT $ src $$ await
