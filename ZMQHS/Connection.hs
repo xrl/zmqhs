@@ -40,14 +40,16 @@ import           Data.Conduit.Blaze
 import           Data.ByteString (ByteString)
 import           Blaze.ByteString.Builder
 
-data Connection m = Connection (IO (m Message)) (IO (Sink ByteString IO ()))
+type MessageSource = Source (ResourceT IO) Message
+type MessageSink   = Sink Message (ResourceT IO) ()
+data Connection = Connection MessageSource MessageSink S.Socket
 
 connspec = case spec "tcp://0.0.0.0:7890" of
   Just a -> a
   Nothing -> error "no way that didn't work"
 
 --  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
-client :: ConnSpec -> Identity -> IO ( (Source (ResourceT IO) Message), (Sink Message (ResourceT IO) ()), S.Socket)
+client :: ConnSpec -> Identity -> IO Connection
 client connspec@(servaddr,servport,socktype) id = do
   -- Setup the outgoing socket using basic network commands
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
@@ -68,9 +70,9 @@ client connspec@(servaddr,servport,socktype) id = do
   putStrLn $ "Their identity: " ++ show their_ident
   let ungreeted_source = ungreeted_unid_source
 
-  let greeted_source   = ungreeted_source $= messageParserConduit
+  let greeted_message_source   = ungreeted_source $= messageParserConduit
 
-  return $ (greeted_source,greeted_sink,sock)
+  return $ Connection greeted_message_source greeted_sink sock
 
 messageParserConduit :: Pipe ByteString Message (ResourceT IO) ()
 messageParserConduit  = sequence $ sinkParser getMessage
@@ -84,11 +86,15 @@ messageSource message   = HaveOutput (Done Nothing ()) (return ()) message
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
 
+recvMessage     (Connection src _ _)  msg = undefined
+sendMessage     (Connection _ snk _)  msg = runResourceT $ (messageSource msg) $$ snk
+closeConnection (Connection _ _ sock)     = S.sClose sock
+
 do_connect  = do
   putStrLn "connecting... "
-  (src,snk,sock) <- client connspec Anonymous
+  connection <- client connspec Anonymous
   putStrLn "connected!"
-  runResourceT $ (messageSource $ Message ["hi"]) $$ snk
-  runResourceT $ (messageSource $ Message ["hi there"]) $$ snk
-  runResourceT $ (messageSource $ Message ["hi there mr conduit"]) $$ snk
-  S.sClose sock
+  sendMessage connection (Message ["hi"])
+  sendMessage connection (Message ["hi there"])
+  sendMessage connection (Message ["hi there mr conduit"])
+  closeConnection connection
