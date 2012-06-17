@@ -47,6 +47,8 @@ static void set_default_operation_values(){
   operation.interval = 0;
 }
 
+int message_count = 0;
+
 void parse_arguments(int argc, char**args);
 void connect_socket(void* sock, char* target);
 
@@ -177,7 +179,8 @@ void recv_msg(void* sock){
     }
 
     #ifdef LOGGING
-      printf("oneframe receiver got '%.*s' (%d bytes)\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg),(int)zmq_msg_size(&msg));
+      printf("Message %d '%.*s' (%d bytes)\n",message_count,(int)zmq_msg_size(&msg),zmq_msg_data(&msg),(int)zmq_msg_size(&msg));
+      message_count=message_count+1;
     #endif
 
     deliver_message(sock,10,0);
