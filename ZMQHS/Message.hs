@@ -2,6 +2,15 @@
 -- License:    BSD
 
 module ZMQHS.Message
+(
+  getMessage,
+  pureIdentity,
+  parseIdentity,
+  buildIdentityMessage,
+  buildMessage,
+  Identity(..),
+  Message(..)
+)
 where
 
 import ZMQHS.Frame
@@ -31,7 +40,7 @@ parseFrames :: AP.Parser [FrameData]
 parseFrames = do
   frame <- frameParser
   case frame of
-    (MoreFrame  payload) -> (payload :) <$> (parseFrames)
+    (MoreFrame  payload) -> (payload :) <$> parseFrames
     (FinalFrame payload) -> return [payload]
 
 pureIdentity :: FrameData -> Identity
@@ -53,10 +62,9 @@ buildIdentityMessage  Anonymous       = buildFrame $ FinalFrame  (BS.pack [])
 buildIdentityMessage (Named identity) = buildFrame $ FinalFrame   identity
 
 buildMessage :: Message -> BSBuilder.Builder
-buildMessage (Message chunks) =  do
-  buildAllFrames chunks
+buildMessage (Message chunks) = buildAllFrames chunks
 
 buildAllFrames :: [FrameData] -> BSBuilder.Builder
 buildAllFrames ([])   =  error "buildAllFrames called with empty array"
 buildAllFrames (x:[]) =  buildFrame (FinalFrame x)
-buildAllFrames (x:xs) = (buildFrame (MoreFrame x)) <> (buildAllFrames xs)
+buildAllFrames (x:xs) =  buildFrame (MoreFrame x) <> buildAllFrames xs
