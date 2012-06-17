@@ -67,7 +67,6 @@ greetedSource sock = do
 --  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
 client :: ConnSpec -> Identity -> IO Connection
 client (servaddr,servport,socktype) identity = do
-  -- Setup the outgoing socket using basic network commands
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
