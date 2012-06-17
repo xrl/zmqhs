@@ -21,7 +21,7 @@
 
 static char* version = "0.1.0";
 
-#define LOGGING 1
+#define LOGGING 0
 
 void free_msg(void *data, void *hint);
 void send_msg(void *sock, int parts, int size);
