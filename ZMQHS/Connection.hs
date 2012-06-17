@@ -1,5 +1,6 @@
 -- Copyright:  Xavier Lange, 2011
 -- License:    BSD
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module ZMQHS.Connection
 (
   server,
@@ -25,9 +26,15 @@ import           Data.ByteString (ByteString)
 import           Blaze.ByteString.Builder
 
 type MessageSource = Source (ResourceT IO) Message
+instance Show MessageSource where
+  show _ = "MessageSource"
 type MessageSink   = Sink Message (ResourceT IO) ()
+instance Show MessageSink where
+  show _ = "MessageSink"
 data Connection    = Connection MessageSource MessageSink S.Socket
+  deriving (Show)
 data Server        = Server Identity S.Socket
+  deriving (Show)
 
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
@@ -54,13 +61,12 @@ client (servaddr,servport,socktype) identity = do
 
   greeted_sink <- greetedSink sock identity
   (greeted_source,_) <- greetedSource sock
-  
+
   return $ Connection greeted_source greeted_sink sock
 
 server :: ConnSpec -> Identity -> IO Server
 server blah@(hostname,servname,_) identity = do
   socket <- bindPort (read servname) (Host hostname)
-  putStrLn $ show socket
   return $ Server identity socket
 
 accept :: Server -> IO Connection
