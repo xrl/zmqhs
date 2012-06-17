@@ -61,10 +61,13 @@ to_ident  "anonymous" = Z.Anonymous
 to_ident  name        = Z.Named (pack name)
 
 exec :: Op -> IO ()
-exec Op {mode=Sub, target_spec=Just _, payload=_, identity=_} = do
+exec Op {mode=Sub, target_spec=Just targ, payload=outgoing, identity=identstr} = do
+  serv <- Z.server targ (to_ident identstr)
+  conn <- Z.accept serv
+  _ <- writeMessages conn 1 outgoing
   return ()
-exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=ident,repetitions=rep} = do
-  conn <- Z.client spec (to_ident ident)
+exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=identstr,repetitions=rep} = do
+  conn <- Z.client spec (to_ident identstr)
   _ <- forkIO $ readAllMessages conn
   _ <- writeMessages conn rep outgoing
   return ()
