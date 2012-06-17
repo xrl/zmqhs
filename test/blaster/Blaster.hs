@@ -35,7 +35,7 @@ operation = CmdOp {mode_        = enum [Pub &= help "Pub",
                    payload_     = "TESTPAYLOAD" &= typ "BYTES" &= help "Message payload",
                    repetitions_ = 1 &= typ "REPEAT" &= help "Repititions"}
                 &= program "blaster"
-                &= summary "One stop shop for using the ZMQHS library to poke around your ZMQ network"
+                &= summary "One stop shop for poking around your ZMQ network"
                 -- &= verbosity
 
 main :: IO ()
@@ -67,10 +67,9 @@ exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=ident,repet
   conn <- Z.client spec (to_ident ident)
   _ <- forkIO $ readAllMessages conn
   _ <- writeMessages conn rep outgoing
-
   return ()
 exec Op {target_spec=Nothing} = do
-  putStrLn "Sorry, please enter a valid target specification (e.g., \"tcp://localhost:7890\")"
+  return ()
 
 readAllMessages :: Z.Connection -> IO ()
 readAllMessages conn = do
