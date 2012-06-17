@@ -21,9 +21,13 @@
 
 static char* version = "0.1.0";
 
+#define LOGGING 1
+
 void free_msg(void *data, void *hint);
 void send_msg(void *sock, int parts, int size);
 void recv_msg(void *sock);
+
+void deliver_message(void* sock, int size, int flags);
 
 struct operation {
   enum {MODE_SEND, MODE_RECV, MODE_UNSET} mode;
@@ -33,6 +37,7 @@ struct operation {
   int parts;
   int size;
 } operation;
+
 static void set_default_operation_values(){
   operation.mode        = MODE_UNSET;
   operation.socket_type = ZMQ_PAIR;
@@ -170,7 +175,11 @@ void recv_msg(void* sock){
       }
     }
 
-    printf("oneframe receiver got '%.*s' (%d bytes)\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg),(int)zmq_msg_size(&msg));
+    #ifdef LOGGING
+      printf("oneframe receiver got '%.*s' (%d bytes)\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg),(int)zmq_msg_size(&msg));
+    #endif
+
+    deliver_message(sock,10,0);
     zmq_msg_close(&msg);
   }
 }
@@ -207,7 +216,6 @@ void connect_socket(void* sock, char* target){
   }
 }
 
-void deliver_message(void* sock, int size, int flags);
 void send_msg(void* sock, int parts, int size){
   for(int i=0; i < (parts-1); i++){
     deliver_message(sock,size,ZMQ_SNDMORE);
@@ -262,11 +270,15 @@ void deliver_message(void* sock, int size, int flags){
     }
     exit(EXIT_FAILURE);
   } else {
-    puts("sent the message");
+    #ifdef LOGGING
+      puts("sent the message");
+    #endif
   }
 
   // Cleanup
-  printf("cleaning up msg...");
+  #ifdef LOGGING
+    printf("cleaning up msg...");
+  #endif
   zmq_msg_close(&msg);
 }
 
@@ -280,6 +292,7 @@ void display_usage(){
   puts("--size size      : Size of a frame");
   puts("--help           : This usage information");
 }
+
 void parse_arguments(int argc, char **args){
   int retval = 0;
   int option_index = 0;
