@@ -102,10 +102,11 @@ void recv_msg(void* sock){
   int retval = 0;
   zmq_msg_t msg;
 
-  retval = zmq_bind(sock,operation.destination);
-
+  // Wow, fun bug. You have to set the identity before bind. No changing identity at runtime?
   #define IDENTITY "blaster.c"
   zmq_setsockopt(sock,ZMQ_IDENTITY,IDENTITY,strlen(IDENTITY));
+  retval = zmq_bind(sock,operation.destination);
+
   if(retval != 0){
     switch(errno){
       case EINVAL:
