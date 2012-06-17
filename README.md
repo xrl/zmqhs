@@ -39,6 +39,10 @@ ZMQ ABNF
     
     neutral     = message
 
+How to DOS libzmq
+--------------
+foldr (>>) (return ()) (repeat do_connect)
+
 combinatorrent
 --------------
 
