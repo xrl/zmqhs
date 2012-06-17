@@ -98,6 +98,9 @@ void recv_msg(void* sock){
   zmq_msg_t msg;
 
   retval = zmq_bind(sock,operation.destination);
+
+  #define IDENTITY "blaster.c"
+  zmq_setsockopt(sock,ZMQ_IDENTITY,IDENTITY,strlen(IDENTITY));
   if(retval != 0){
     switch(errno){
       case EINVAL:
@@ -132,13 +135,15 @@ void recv_msg(void* sock){
     }
   }
 
-  puts("Server up. Waiting for message.");
+  char identity[256];
+  size_t identity_size;
+  zmq_getsockopt(sock,ZMQ_IDENTITY,identity,&identity_size);
+  printf("Server up (identity %.*s). Waiting for message.\n",(int)identity_size,identity);
 
   while(1){
     zmq_msg_init(&msg);
-    
-    retval = zmq_recv(sock,&msg,0);
 
+    retval = zmq_recv(sock,&msg,0);
     if(retval != 0){
       switch(errno){
         case EAGAIN:
@@ -165,7 +170,7 @@ void recv_msg(void* sock){
       }
     }
 
-    printf("oneframe receiver got %.*s\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg));
+    printf("oneframe receiver got '%.*s' (%d bytes)\n",(int)zmq_msg_size(&msg),zmq_msg_data(&msg),(int)zmq_msg_size(&msg));
     zmq_msg_close(&msg);
   }
 }
