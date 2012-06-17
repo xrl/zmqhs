@@ -6,6 +6,7 @@ import System.Console.CmdArgs (cmdArgs, Data, Typeable, help, enum, (&=), typ, p
 
 import qualified ZMQHS as Z
 
+import Control.Exception
 import Control.Concurrent
 
 import Data.ByteString.Char8 (pack)
@@ -17,6 +18,7 @@ data CmdOp = CmdOp {mode_        :: Mode,
                     payload_     :: String,
                     repetitions_ :: Int}
      deriving (Typeable, Data, Show)
+
 data Op = Op {mode        :: Mode,
               target      :: String,
               target_spec :: Maybe Z.ConnSpec,
@@ -59,13 +61,13 @@ to_ident  "anonymous" = Z.Anonymous
 to_ident  name        = Z.Named (pack name)
 
 exec :: Op -> IO ()
-exec Op {mode=Sub, target_spec=_, payload=_, identity=_} = do
+exec Op {mode=Sub, target_spec=Just _, payload=_, identity=_} = do
   return ()
 exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=ident,repetitions=rep} = do
   conn <- Z.client spec (to_ident ident)
   _ <- forkIO $ readAllMessages conn
-  _ <- forkIO $ writeMessages conn rep outgoing
-  
+  _ <- writeMessages conn rep outgoing
+
   return ()
 exec Op {target_spec=Nothing} = do
   putStrLn "Sorry, please enter a valid target specification (e.g., \"tcp://localhost:7890\")"
@@ -75,9 +77,15 @@ readAllMessages conn = do
   foldr (>>) (return ()) $ repeat $ do
     msg <- Z.recvMessage conn
     case msg of
-      Just _  -> print $ ("." :: String)
-      Nothing -> return ()
+      Just _  -> putChar '.'
+      Nothing -> putStrLn "got nothing?"
 
 writeMessages :: Z.Connection -> Int -> String -> IO ()
 writeMessages conn rep outgoing = do
   foldr (>>) (return ()) (take rep $ repeat (Z.sendMessage conn (Z.Message [pack outgoing])))
+
+--myForkIO :: IO () -> IO (MVar ())
+--myForkIO io = do
+--  mvar <- newEmptyMVar
+--  _ <- forkIO (io `finally` putMVar mvar ())
+--  return mvar
