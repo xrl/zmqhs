@@ -46,8 +46,8 @@ parseIdentity = do
       otherwise -> Named bs
 
 buildIdentityMessage :: Identity -> BSBuilder.Builder
-buildIdentityMessage Anonymous        = buildAllFrames [BS.pack []]
-buildIdentityMessage (Named identity) = buildAllFrames [identity]
+buildIdentityMessage Anonymous        = buildFrame $ FinalFrame  (BS.pack [])
+buildIdentityMessage (Named identity) = buildFrame $ FinalFrame   identity
 
 buildMessage :: Message -> BSBuilder.Builder
 buildMessage (Message chunks) =  do

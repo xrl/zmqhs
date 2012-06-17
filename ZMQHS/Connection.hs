@@ -49,17 +49,32 @@ connspec = case spec "tcp://0.0.0.0:7890" of
 --  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
 client :: ConnSpec -> Identity -> IO ( (Source (ResourceT IO) Message), (Sink Message (ResourceT IO) ()))
 client connspec@(servaddr,servport,socktype) id = do
+  -- Setup the outgoing socket using basic network commands
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
-  let parserConduit  = sequence $ sinkParser getMessage
-  let ungreeted_sock = sourceSocket sock
-  let greeted_sock   = ungreeted_sock $= parserConduit
+
+  -- Setup the outgoing data stream
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  blah <- runResourceT $ (identitySource Anonymous) $$ ungreeted_sink
+  handshake <- runResourceT $ (identitySource Anonymous) $$ ungreeted_sink
   let greeted_sink   = messageToBuilderConduit =$ ungreeted_sink
+
+  -- Setup the incoming data stream
+  let ungreeted_unid_sock = sourceSocket sock
+
+  -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
+  let get_identity = ungreeted_unid_sock $$ (sinkParser getMessage)
+  (Message (their_ident:[])) <- runResourceT $ get_identity
+  putStrLn $ "Their identity: " ++ show their_ident
+  let ungreeted_sock = ungreeted_unid_sock
+
+  let greeted_sock   = ungreeted_sock $= messageParserConduit
+
   return $ (greeted_sock,greeted_sink)
+
+messageParserConduit :: Pipe ByteString Message (ResourceT IO) ()
+messageParserConduit  = sequence $ sinkParser getMessage
 
 identitySource :: Monad m => Identity -> Source m Builder
 identitySource identity = HaveOutput (Done Nothing ()) (return ()) (buildIdentityMessage identity)
@@ -73,9 +88,8 @@ messageToBuilderConduit = CL.map buildMessage
 do_connect  = do
   putStrLn "connecting... "
   (src,snk) <- client connspec Anonymous
-  blah <- runResourceT (messageSource (Message []) $$ snk)
-  halb <- runResourceT (messageSource (Message ["TWO"]) $$ snk)
-  asdf <- runResourceT (messageSource (Message ["THREE"]) $$ snk)
-  fdsa <- runResourceT (messageSource (Message ["FOUR"]) $$ snk)
-  a123 <- runResourceT (messageSource (Message ["FIVE"]) $$ snk)
   putStrLn "connected!"
+  runResourceT $ (messageSource $ Message ["hi"]) $$ snk
+  runResourceT $ (messageSource $ Message ["hi there"]) $$ snk
+  runResourceT $ (messageSource $ Message ["hi there mr conduit"]) $$ snk
+
