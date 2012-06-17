@@ -39,7 +39,7 @@ data Server        = Server Identity S.Socket
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  _ <- runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
+  runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
   let greeted_message_sink   = CL.map buildMessage =$ ungreeted_sink
   return greeted_message_sink
 
@@ -65,7 +65,7 @@ client (servaddr,servport,socktype) identity = do
   return $ Connection greeted_source greeted_sink sock
 
 server :: ConnSpec -> Identity -> IO Server
-server blah@(hostname,servname,_) identity = do
+server (hostname,servname,_) identity = do
   socket <- bindPort (read servname) (Host hostname)
   return $ Server identity socket
 

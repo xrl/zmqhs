@@ -115,6 +115,7 @@ interprete (cmd:xs)
     | cmd == "disconnect" = interpreteDisconnect xs
     | cmd == "send"       = interpreteSend xs
     | cmd == "recv"       = interpreteRecv xs
+    | cmd == "help"       = io $ putStrLn printHelp
     | otherwise           = case reads cmd of 
                                  [(n, "")] -> sequence_ $ take n $ repeat $ interprete (xs) 
                                  _         -> io $ putStrLn "Command error"
@@ -122,19 +123,28 @@ interprete (cmd:xs)
 interprete _ = io $ putStrLn ""
 
 
+printHelp :: String
+printHelp = "Usage :\n\
+             \\tconnect URI identity\n\
+             \\tdisconnect\n\
+             \\t[repeat] send frame1 frame2 frame3...\n\
+             \\t[repeat] recv"
+
 interpreteConnect :: [String] -> StateIO (Maybe Z.Connection) ()
 interpreteConnect (target:identity:[]) = case Z.spec target of
                                               Just target_spec -> do io $ putStrLn $ "Connecting " ++ target ++ "..."
                                                                      conn <- io $ Z.client target_spec (to_ident identity)
                                                                      setState $ Just conn
-                                                                     return ()
-                                              otherwise -> return ()
-interpreteConnect _                     = io $ putStrLn "Usage send frame1 frame2 ..."
+                                                                     io $ putStrLn $ "Connected !"
+                                              otherwise -> io $ putStrLn $ "Bad target :" ++ target
+interpreteConnect _                     = io $ putStrLn "Usage: connect <target> <identity>"
 
 interpreteDisconnect :: [String] -> StateIO (Maybe Z.Connection) ()
 interpreteDisconnect [] =  do connection <- getState 
                               case connection of
-                                   Just conn -> io $ Z.closeConnection conn
+                                   Just conn -> do io $ Z.closeConnection conn
+                                                   setState Nothing
+                                                   io $ putStrLn "Disconnected"
                                    Nothing   -> return ()
     
 
@@ -142,16 +152,16 @@ interpreteSend :: [String] -> StateIO (Maybe Z.Connection) ()
 interpreteSend payload = do connection <- getState
                             case connection of
                                  Just conn -> io $ (Z.sendMessage conn (Z.Message (map pack payload))) >> (putStrLn $ "Sent message " ++ (unwords payload))
-                                 otherwise -> return ()
+                                 otherwise -> io $ putStrLn "Need to be connected to send a message"
 
 
 interpreteRecv :: [String] -> StateIO (Maybe Z.Connection) ()
-interpreteRecv [] = do conn <- getState
-                       case conn of
-                            Just conn -> io $Z.recvMessage conn >>= \x -> case x of
+interpreteRecv _ = do conn <- getState
+                      case conn of
+                           Just conn -> io $Z.recvMessage conn >>= \x -> case x of
                                                                         Just (Z.Message payload) -> putStrLn $ "Received " ++ (show $ B.concat payload)
                                                                         otherwise                -> return ()
-                            otherwise -> return ()
+                           otherwise -> io $ putStrLn "Need to be connected to receive messages"
 
 mapMaybeStateIO :: (a -> StateIO b c) -> Maybe a -> StateIO b ()
 mapMaybeStateIO _ Nothing  = return ()
