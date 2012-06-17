@@ -39,17 +39,17 @@ data Server        = Server Identity S.Socket
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  _ <- runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
-  let greeted_message_sink   = (CL.map buildMessage) =$ ungreeted_sink
+  _ <- runResourceT $ yield $ buildIdentityMessage identity $$ ungreeted_sink
+  let greeted_message_sink   = CL.map buildMessage =$ ungreeted_sink
   return greeted_message_sink
 
 greetedSource :: S.Socket -> IO (MessageSource,Identity)
 greetedSource sock = do
   let ungreeted_unid_source = sourceSocket sock
     -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
-  let get_identity = ungreeted_unid_source $$ (sinkParser getMessage)
-  (Message (frame:[])) <- runResourceT $ get_identity
-  let greeted_message_source   = ungreeted_unid_source $= (sequence $ sinkParser getMessage)
+  let get_identity = ungreeted_unid_source $$ sinkParser getMessage
+  (Message (frame:[])) <- runResourceT get_identity
+  let greeted_message_source   = ungreeted_unid_source $= sequence (sinkParser getMessage)
   return (greeted_message_source,pureIdentity frame)
 
 client :: ConnSpec -> Identity -> IO Connection

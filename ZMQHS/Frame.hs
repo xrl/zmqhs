@@ -68,7 +68,7 @@ parseLength = do
     then fromIntegral <$> APB.anyWord64be
     else return first_byte
 
-frameConstructor :: Word8 -> (FrameData -> Frame)
+frameConstructor :: Word8 -> FrameData -> Frame
 frameConstructor word
   | word .&. 0x01 == 0x01   = MoreFrame
   | otherwise               = FinalFrame
@@ -85,9 +85,9 @@ buildFrame frame =
 
 buildLength :: Frame -> BSBuilder.Builder
 buildLength frame
- | (frameLength frame) < 256 = IntBuilder.fromInt8    (1+(frameLength frame))
- | otherwise                 = IntBuilder.fromInt8 0xFF
-                            <> IntBuilder.fromInt64be (1+(frameLength frame))
+ | frameLength frame < 256 = IntBuilder.fromInt8    1 + frameLength frame
+ | otherwise               = IntBuilder.fromInt8 0xFF
+                          <> IntBuilder.fromInt64be 1 + frameLength frame
 
 buildFrameType :: Frame -> BSBuilder.Builder
 buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x01

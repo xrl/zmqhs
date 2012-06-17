@@ -26,7 +26,4 @@ specFromURI uri = do
 
 -- I need this so often I might as well put it here
 connspec :: ConnSpec
-connspec =
-  case spec "tcp://0.0.0.0:7890" of
-    Just specy -> specy
-    Nothing -> error "never gonna happen!"
+connspec = fromMaybe (error "never going to happen!") (pec "tcp://0.0.0.0:7890")
