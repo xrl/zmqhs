@@ -20,6 +20,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module ZMQHS.Connection
+(
+  client,
+  Connection(..),
+  recvMessage,
+  sendMessage,
+  closeConnection
+)
 where
 import ZMQHS.Frame      
 import ZMQHS.Message    
@@ -77,17 +84,14 @@ client connspec@(servaddr,servport,socktype) id = do
 messageParserConduit :: Pipe ByteString Message (ResourceT IO) ()
 messageParserConduit  = sequence $ sinkParser getMessage
 
-identitySource :: Monad m => Identity -> Source m Builder
-identitySource identity = HaveOutput (Done Nothing ()) (return ()) (buildIdentityMessage identity)
-
-messageSource :: Monad m => Message -> Source m Message
-messageSource message   = HaveOutput (Done Nothing ()) (return ()) message
+identitySource :: Identity -> Source (ResourceT IO) Builder
+identitySource identity = yield $ buildIdentityMessage identity
 
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
 
-recvMessage     (Connection src _ _)  msg = undefined
-sendMessage     (Connection _ snk _)  msg = runResourceT $ (messageSource msg) $$ snk
+recvMessage     (Connection src _ _)      = runResourceT $ src $$ await
+sendMessage     (Connection _ snk _)  msg = runResourceT $ yield msg $$ snk
 closeConnection (Connection _ _ sock)     = S.sClose sock
 
 do_connect  = do
@@ -97,4 +101,8 @@ do_connect  = do
   sendMessage connection (Message ["hi"])
   sendMessage connection (Message ["hi there"])
   sendMessage connection (Message ["hi there mr conduit"])
+  _recv <- recvMessage connection
+  case _recv of
+    Just (Message xs) -> putStrLn $ show xs
+    Nothing           -> putStrLn "failed to pull a message"
   closeConnection connection
