@@ -2,24 +2,13 @@
 
 {-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 
-import System.Console.CmdArgs (cmdArgs, Data, Typeable, help, enum, (&=), typ, ignore, program, summary)
+import System.Console.CmdArgs (cmdArgs, Data, Typeable, help, enum, (&=), typ, program, summary)
 
 import qualified ZMQHS as Z
 
-import Control.Monad.Trans
-import Control.Monad.Maybe
 import Control.Concurrent
 
 import Data.ByteString.Char8 (pack)
-
-import Data.Conduit
-import Data.Conduit.Network (sourceSocket)
-import Data.Conduit.Attoparsec
-
-type MaybeIO = MaybeT IO
-
-liftMaybeT :: Monad m => Maybe a -> MaybeT m a
-liftMaybeT  = MaybeT . return
 
 data Mode = Pub | Sub deriving (Typeable, Data, Show)
 data CmdOp = CmdOp {mode_        :: Mode,
@@ -36,6 +25,7 @@ data Op = Op {mode        :: Mode,
               repetitions :: Int}
      deriving (Show)
 
+operation :: CmdOp
 operation = CmdOp {mode_        = enum [Pub &= help "Pub",
                                         Sub &= help "Sub"],
                    target_      = "" &= typ "URI" &= help "Target URI spec",
@@ -51,10 +41,11 @@ main = do
   raw_args <- cmdArgs operation
   let args = op_from_cmd_op raw_args
   case (target_spec args) of
-    Just connspec  -> exec args
-    Nothing        -> putStrLn "Target spec must be a valid spec"
+    Just _  -> exec args
+    Nothing -> putStrLn "Target spec must be a valid spec"
   return ()
 
+op_from_cmd_op :: CmdOp -> Op
 op_from_cmd_op CmdOp{mode_=m,target_=t,identity_=i,payload_=p,repetitions_=r} =
   Op {mode        = m,
       target      = t,
@@ -68,12 +59,13 @@ to_ident  "anonymous" = Z.Anonymous
 to_ident  name        = Z.Named (pack name)
 
 exec :: Op -> IO ()
-exec Op {mode=Sub, target_spec=Just target_spec, payload=payload, identity=identity} = do
+exec Op {mode=Sub, target_spec=_, payload=_, identity=_} = do
   return ()
-exec Op {mode=Pub, target_spec=Just target_spec, payload=payload, identity=identity,repetitions=rep} = do
-  conn <- Z.client target_spec (to_ident identity)
-  thread <- forkIO $ readAllMessages conn
-  foldr (>>) (return ()) (take rep $ repeat (Z.sendMessage conn (Z.Message [pack payload])))
+exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=ident,repetitions=rep} = do
+  conn <- Z.client spec (to_ident ident)
+  _ <- forkIO $ readAllMessages conn
+  _ <- forkIO $ writeMessages conn rep outgoing
+  
   return ()
 exec Op {target_spec=Nothing} = do
   putStrLn "Sorry, please enter a valid target specification (e.g., \"tcp://localhost:7890\")"
@@ -83,5 +75,9 @@ readAllMessages conn = do
   foldr (>>) (return ()) $ repeat $ do
     msg <- Z.recvMessage conn
     case msg of
-      Just msg -> print "."
-      Nothing  -> return ()
+      Just _  -> print $ ("." :: String)
+      Nothing -> return ()
+
+writeMessages :: Z.Connection -> Int -> String -> IO ()
+writeMessages conn rep outgoing = do
+  foldr (>>) (return ()) (take rep $ repeat (Z.sendMessage conn (Z.Message [pack outgoing])))

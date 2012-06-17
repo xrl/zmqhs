@@ -9,14 +9,12 @@ import ZMQHS.Frame
 import qualified Data.Attoparsec as AP
 
 import qualified Data.ByteString      as BS
--- Put is marked for removal
-import qualified Data.Binary.Put as P
 
 import qualified Blaze.ByteString.Builder as BSBuilder
-import qualified Blaze.ByteString.Builder.Int as IntBuilder
+import qualified Blaze.ByteString.Builder.Int as IntBuilder()
 
-import Control.Monad
-import Data.Monoid (Monoid, mappend)
+import Control.Monad()
+import Data.Monoid()
 import Control.Applicative hiding (empty)
 import Data.Attoparsec((<?>))
 
@@ -42,8 +40,8 @@ parseIdentity = do
   return $ (identify . frameData) frame
   where
     identify bs = case BS.length bs of
-      0         -> Anonymous
-      otherwise -> Named bs
+      0  -> Anonymous
+      _  -> Named bs
 
 buildIdentityMessage :: Identity -> BSBuilder.Builder
 buildIdentityMessage  Anonymous       = buildFrame $ FinalFrame  (BS.pack [])
@@ -54,5 +52,6 @@ buildMessage (Message chunks) =  do
   buildAllFrames chunks
 
 buildAllFrames :: [FrameData] -> BSBuilder.Builder
+buildAllFrames ([])   =  error "buildAllFrames called with empty array"
 buildAllFrames (x:[]) =  buildFrame (FinalFrame x)
 buildAllFrames (x:xs) = (buildFrame (MoreFrame x)) <> (buildAllFrames xs)

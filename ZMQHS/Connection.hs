@@ -28,17 +28,14 @@ module ZMQHS.Connection
   closeConnection
 )
 where
-import ZMQHS.Frame      
-import ZMQHS.Message    
-import ZMQHS.ConnSpec   
--- I want type sigs to be more general. How can I get rid of this?
-import GHC.Int
+import ZMQHS.Frame()
+import ZMQHS.Message   
+import ZMQHS.ConnSpec
 import Prelude hiding (sequence)
-import Control.Applicative hiding (empty)
-import Control.Monad.IO.Class (MonadIO,liftIO)
-import Control.Monad.Trans.Class (lift)
+--import Control.Applicative hiding (empty)
+--import Control.Monad.IO.Class (MonadIO,liftIO)
+--import Control.Monad.Trans.Class (lift)
 import qualified Network.Socket as S
-import qualified Data.Binary.Put as P
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
 import           Data.Conduit.Attoparsec
@@ -51,13 +48,9 @@ type MessageSource = Source (ResourceT IO) Message
 type MessageSink   = Sink Message (ResourceT IO) ()
 data Connection = Connection MessageSource MessageSink S.Socket
 
-connspec = case spec "tcp://0.0.0.0:7890" of
-  Just a -> a
-  Nothing -> error "no way that didn't work"
-
 --  (MonadIO m, MonadUnsafeIO m, MonadThrow m) => 
 client :: ConnSpec -> Identity -> IO Connection
-client connspec@(servaddr,servport,socktype) id = do
+client (servaddr,servport,socktype) identity = do
   -- Setup the outgoing socket using basic network commands
   addrinfos <- S.getAddrInfo (Just S.defaultHints) (Just servaddr) (Just servport)
   let servinfo = head addrinfos
@@ -66,7 +59,7 @@ client connspec@(servaddr,servport,socktype) id = do
 
   -- Setup the outgoing data stream
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  handshake <- runResourceT $ (identitySource Anonymous) $$ ungreeted_sink
+  _ <- runResourceT $ (identitySource identity) $$ ungreeted_sink
   let greeted_sink   = messageToBuilderConduit =$ ungreeted_sink
 
   -- Setup the incoming data stream
@@ -90,19 +83,9 @@ identitySource identity = yield $ buildIdentityMessage identity
 messageToBuilderConduit :: Monad m => Conduit Message m Builder
 messageToBuilderConduit = CL.map buildMessage
 
+recvMessage :: Connection -> IO (Maybe Message)
 recvMessage     (Connection src _ _)      = runResourceT $ src $$ await
+sendMessage :: Connection -> Message -> IO ()
 sendMessage     (Connection _ snk _)  msg = runResourceT $ yield msg $$ snk
+closeConnection :: Connection -> IO ()
 closeConnection (Connection _ _ sock)     = S.sClose sock
-
-do_connect  = do
-  putStrLn "connecting... "
-  connection <- client connspec Anonymous
-  putStrLn "connected!"
-  sendMessage connection (Message ["hi"])
-  sendMessage connection (Message ["hi there"])
-  sendMessage connection (Message ["hi there mr conduit"])
-  _recv <- recvMessage connection
-  case _recv of
-    Just (Message xs) -> putStrLn $ show xs
-    Nothing           -> putStrLn "failed to pull a message"
-  closeConnection connection

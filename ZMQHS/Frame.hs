@@ -16,7 +16,7 @@ module ZMQHS.Frame
   debugIt,
   (<>),
   Frame (..),
-  FrameData (..)
+  FrameData
 )
 where
 
@@ -29,14 +29,10 @@ import Data.Monoid (Monoid, mappend)
 import           Data.Word (Word8)
 import           Data.Bits
 import qualified Data.Attoparsec as AP
-import Data.Attoparsec((<?>))
 import qualified Data.Attoparsec.Binary as APB
 
-import qualified Data.Binary.Put as P
 import qualified Blaze.ByteString.Builder as BSBuilder
 import qualified Blaze.ByteString.Builder.Int as IntBuilder
-
-import Debug.Trace
 
 import qualified Data.ByteString      as BS
 import qualified Numeric              as N

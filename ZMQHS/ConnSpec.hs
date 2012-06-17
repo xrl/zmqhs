@@ -1,7 +1,7 @@
 module ZMQHS.ConnSpec
 (
   spec,
-  ConnSpec(..)
+  ConnSpec
 )
 where
 import qualified Network.URI as U
