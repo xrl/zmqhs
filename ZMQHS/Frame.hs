@@ -27,13 +27,14 @@ import Control.Applicative hiding (empty)
 
 import Data.Monoid (Monoid, mappend)
 
-import           Data.Word (Word8)
+import           Data.Word (Word8, Word64)
 import           Data.Bits
 import qualified Data.Attoparsec as AP
 import qualified Data.Attoparsec.Binary as APB
 
 import qualified Blaze.ByteString.Builder as BSBuilder
-import qualified Blaze.ByteString.Builder.Int as IntBuilder
+--import qualified Blaze.ByteString.Builder.Int as IntBuilder
+import qualified Blaze.ByteString.Builder.Word as WordBuilder
 
 import qualified Data.ByteString      as BS
 import qualified Numeric              as N
@@ -50,7 +51,7 @@ frameData :: Frame -> FrameData
 frameData (MoreFrame  payload) = payload
 frameData (FinalFrame payload) = payload
 
-frameLength :: Num a => Frame -> a
+frameLength :: Frame -> Word64
 frameLength frame = (fromIntegral . BS.length) (frameData frame)
 
 frameParser :: AP.Parser Frame
@@ -85,13 +86,14 @@ buildFrame frame =
 
 buildLength :: Frame -> BSBuilder.Builder
 buildLength frame
- | frameLength frame < 256 = IntBuilder.fromInt8    (1 + frameLength frame)
- | otherwise               = IntBuilder.fromInt8     0xFF
-                          <> IntBuilder.fromInt64be (1 + frameLength frame)
+ | frameLength frame < maxWord8 = WordBuilder.fromWord8    $ fromIntegral (1 + frameLength frame)
+ | otherwise                               = WordBuilder.fromWord8    0xFF
+                                           <> WordBuilder.fromWord64be (1 + frameLength frame)
+    where maxWord8 = fromIntegral (maxBound :: Word8)
 
 buildFrameType :: Frame -> BSBuilder.Builder
-buildFrameType (MoreFrame  _) = IntBuilder.fromInt8 0x01
-buildFrameType (FinalFrame _) = IntBuilder.fromInt8 0x00
+buildFrameType (MoreFrame  _) = WordBuilder.fromWord8 0x01
+buildFrameType (FinalFrame _) = WordBuilder.fromWord8 0x00
 
 buildFrameData :: Frame -> BSBuilder.Builder
 buildFrameData frame = BSBuilder.fromByteString (frameData frame)

@@ -3,16 +3,16 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module ZMQHS.Connection
 (
-  server,
+  startServer,
   accept,
   client,
   Connection(..),
   recvMessage,
   sendMessage,
-  closeConnection
+  closeConn,
+  stopServer
 )
 where
-import ZMQHS.Frame
 import ZMQHS.Message   
 import ZMQHS.ConnSpec
 import Prelude hiding (sequence)
@@ -22,8 +22,6 @@ import qualified Data.Conduit.List as CL
 import           Data.Conduit.Attoparsec
 import           Data.Conduit.Network
 import           Data.Conduit.Blaze
-import           Data.ByteString (ByteString)
-import           Blaze.ByteString.Builder
 
 type MessageSource = Source (ResourceT IO) Message
 instance Show MessageSource where
@@ -64,8 +62,8 @@ client (servaddr,servport,socktype) identity = do
 
   return $ Connection greeted_source greeted_sink sock
 
-server :: ConnSpec -> Identity -> IO Server
-server blah@(hostname,servname,_) identity = do
+startServer :: ConnSpec -> Identity -> IO Server
+startServer (hostname,servname,_) identity = do
   socket <- bindPort (read servname) (Host hostname)
   return $ Server identity socket
 
@@ -77,10 +75,13 @@ accept (Server identity listenersock) = do
   return $ Connection greeted_source greeted_sink sock
 
 recvMessage :: Connection -> IO (Maybe Message)
-recvMessage     (Connection src _ _)      = runResourceT $ src $$ await
+recvMessage (Connection src _ _)     = runResourceT $ src $$ await
 
 sendMessage :: Connection -> Message -> IO ()
-sendMessage     (Connection _ snk _)  msg = runResourceT $ yield msg $$ snk
+sendMessage (Connection _ snk _) msg = runResourceT $ yield msg $$ snk
 
-closeConnection :: Connection -> IO ()
-closeConnection (Connection _ _ sock)     = S.sClose sock
+closeConn :: Connection -> IO ()
+closeConn   (Connection _ _ sock)     = S.sClose sock
+
+stopServer :: Server -> IO ()
+stopServer  (Server _ sock)           = S.sClose sock

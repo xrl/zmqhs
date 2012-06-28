@@ -1,7 +1,8 @@
 module ZMQHS.ConnSpec
 (
   spec,
-  ConnSpec
+  ConnSpec,
+  connspec
 )
 where
 import Data.Maybe
