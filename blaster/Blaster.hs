@@ -1,4 +1,4 @@
-#!/usr/bin/env runhaskell
+#!/usr/bin/env runhaskell -i..
 
 {-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 
@@ -6,10 +6,13 @@ import System.Console.CmdArgs (cmdArgs, Data, Typeable, help, enum, (&=), typ, p
 
 import qualified ZMQHS as Z
 
-import Control.Exception
-import Control.Concurrent
+import Prelude hiding (catch)
+import Control.Exception (bracket, catch)
+import Control.Monad (forever)
 
 import Data.ByteString.Char8 (pack)
+
+import Blaster.Application
 
 data Mode = Pub | Sub deriving (Typeable, Data, Show)
 data CmdOp = CmdOp {mode_        :: Mode,
@@ -60,34 +63,34 @@ to_ident :: String -> Z.Identity
 to_ident  "anonymous" = Z.Anonymous
 to_ident  name        = Z.Named (pack name)
 
+
+--serv <- Z.server targ $ to_ident identstr
+--conn <- Z.accept serv
+--_ <- writeMessages conn 1 outgoing
+--Z.closeConn conn
 exec :: Op -> IO ()
 exec Op {mode=Sub, target_spec=Just targ, payload=outgoing, identity=identstr} = do
-  serv <- Z.server targ (to_ident identstr)
-  conn <- Z.accept serv
-  _ <- writeMessages conn 1 outgoing
-  return ()
+  forever $
+    catch
+      (bracket (Z.startServer targ $ to_ident identstr)
+               (Z.stopServer)
+               (\serv -> (do
+                   bracket (putStrLn "accepting..." >> Z.accept serv)
+                           (Z.closeConn)
+                           (\conn -> writeMessages conn 1 outgoing)
+                         )
+               ))
+      (\err -> putStrLn $ "Exception caught: " ++ show (err :: IOError))
 exec Op {mode=Pub, target_spec=Just spec, payload=outgoing, identity=identstr,repetitions=rep} = do
   conn <- Z.client spec (to_ident identstr)
-  _ <- forkIO $ readAllMessages conn
-  _ <- writeMessages conn rep outgoing
+  asyncws <- mapM (\_ -> spawnWriter conn rep outgoing) [1..10] 
+  asyncrs <- mapM (\_ -> spawnReader conn)              [1..10] 
+
+  mapM_ Z.wait asyncws
+  mapM_ Z.wait asyncrs
+
   return ()
 exec Op {target_spec=Nothing} = do
   return ()
 
-readAllMessages :: Z.Connection -> IO ()
-readAllMessages conn = do
-  foldr (>>) (return ()) $ repeat $ do
-    msg <- Z.recvMessage conn
-    case msg of
-      Just _  -> putChar '.'
-      Nothing -> putStrLn "got nothing?"
-
-writeMessages :: Z.Connection -> Int -> String -> IO ()
-writeMessages conn rep outgoing = do
-  foldr (>>) (return ()) (take rep $ repeat (Z.sendMessage conn (Z.Message [pack outgoing])))
-
---myForkIO :: IO () -> IO (MVar ())
---myForkIO io = do
---  mvar <- newEmptyMVar
---  _ <- forkIO (io `finally` putMVar mvar ())
---  return mvar
+--foldr (>>) (return ()) (take rep $ repeat ()
