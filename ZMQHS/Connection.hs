@@ -37,7 +37,7 @@ data Server        = Server Identity S.Socket
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  _ <- runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
+  runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
   let greeted_message_sink   = CL.map buildMessage =$ ungreeted_sink
   return greeted_message_sink
 
