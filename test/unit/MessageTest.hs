@@ -32,7 +32,7 @@ main = do
 spec = do
   describe "parsing frames" $ do
     context "the parser" $ do
-      map (\(msg,frame,expected) ->
+      mapM_ (\(msg,frame,expected) ->
         it msg $ case AP.parse Z.frameParser frame of
                   expected  -> True
                   otherwise -> trace (show otherwise) False
