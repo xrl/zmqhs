@@ -47,7 +47,7 @@ greetedSource sock = do
     -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
   let get_identity = ungreeted_unid_source $$ sinkParser getMessage
   (Message (frame:[])) <- runResourceT get_identity
-  let greeted_message_source   = ungreeted_unid_source $= sequence (sinkParser getMessage)
+  let greeted_message_source   = ungreeted_unid_source $= CL.sequence (sinkParser getMessage)
   return (greeted_message_source,pureIdentity frame)
 
 client :: ConnSpec -> Identity -> IO Connection

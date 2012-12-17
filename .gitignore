@@ -1,3 +1,5 @@
 dist/
 *.plist
 tags
+*.hi
+*.o
