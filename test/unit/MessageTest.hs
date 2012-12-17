@@ -4,6 +4,8 @@ import           Test.Hspec
 import Control.Exception (fromException)
 import Control.Monad.Trans
 
+import Debug.Trace (trace)
+
 import qualified ZMQHS as Z
 import qualified Data.Attoparsec.ByteString as AP
 
@@ -21,15 +23,23 @@ second_stage_handshake = B.pack [0x1d, 0x7e, 0x41, 0x53, 0x44, 0x46,
                                  0x41, 0x53, 0x44, 0x46, 0x41, 0x53,
                                  0x44, 0x46, 0x41, 0x53, 0x44, 0x46]
 
+examples = [("Complete with payload 'A'",   B.pack [1,0,65], Z.FinalFrame $ B.pack [65]),
+            ("Incomplete with payload 'A'", B.pack [1,1,65], Z.MoreFrame  $ B.pack [65])]
+
 main = do
-  Z.debugIt undefined
--- hspec spec
+  hspec spec
 -- https://github.com/snoyberg/conduit/blob/master/attoparsec-conduit/test/main.hs
 spec = do
   describe "parsing frames" $ do
-    context "a minimal frame" $ do
-      describe "the parser" $ do
-        it "reads all the bytes" $ pending
-          --case (AP.parse Z.frameParser (B.pack [65])) of
-          --  (AP.Done _ (Z.FinalFrame (payload))) -> True
-          --  otherwise -> False
+    context "the parser" $ do
+      map (\(msg,frame,expected) ->
+        it msg $ case AP.parse Z.frameParser frame of
+                  expected  -> True
+                  otherwise -> trace (show otherwise) False
+        ) examples
+
+        --case (AP.parse Z.frameParser test_one_complete) of
+        --  (AP.Done _ (Z.FinalFrame (payload))) -> True
+        --  (AP.Partial _) -> True
+        --  (AP.Fail _ _ _) -> False
+        --  otherwise -> trace (show otherwise) (False)
