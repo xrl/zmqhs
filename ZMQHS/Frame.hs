@@ -39,20 +39,15 @@ import qualified Blaze.ByteString.Builder.Word as WordBuilder
 import qualified Data.ByteString      as BS
 import qualified Numeric              as N
 
+--import Debug.Trace (trace)
+
 -- include/zmq.h #define, merge all flags
 
 type FrameData = BS.ByteString
 
 data Frame = MoreFrame  FrameData
            | FinalFrame FrameData
-  deriving (Show)
-
-frameData :: Frame -> FrameData
-frameData (MoreFrame  payload) = payload
-frameData (FinalFrame payload) = payload
-
-frameLength :: Frame -> Word64
-frameLength frame = (fromIntegral . BS.length) (frameData frame)
+  deriving (Show, Eq)
 
 frameParser :: AP.Parser Frame
 frameParser = do
@@ -61,6 +56,13 @@ frameParser = do
   let payload_size = numbytes - 1
   payload <- AP.take payload_size
   return $ constructor payload
+
+frameData :: Frame -> FrameData
+frameData (MoreFrame  payload) = payload
+frameData (FinalFrame payload) = payload
+
+frameLength :: Frame -> Word64
+frameLength frame = (fromIntegral . BS.length) (frameData frame)
 
 parseLength :: AP.Parser Int
 parseLength = do
