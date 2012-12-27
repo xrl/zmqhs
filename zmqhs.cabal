@@ -62,7 +62,7 @@ Library
   GHC-Options: -Wall
   
   -- Modules not exported by this package.
-  Other-modules: ZMQHS.Frame
+  Other-modules: ZMQHS.Frame, ZMQHS.Message
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
@@ -86,6 +86,6 @@ Test-Suite test-zmqhs
   HS-Source-Dirs: test/unit/
   Main-Is:        MessageTest.hs
   GHC-Options:    -Wall
-  Build-Depends:  base, zmqhs, bytestring, attoparsec, mtl, hspec, HUnit
+  Build-Depends:  base, zmqhs, bytestring, attoparsec, mtl, hspec, hspec-expectations, HUnit
 
 -- base, cmdargs, network, MaybeT, mtl, attoparsec, attoparsec-binary, binary, bytestring, zmqhs, conduit, attoparsec-conduit, network-conduit, transformers, blaze-builder, blaze-builder-conduit
