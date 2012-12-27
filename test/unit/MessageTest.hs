@@ -7,7 +7,7 @@ where
 -- import           Debug.Trace (trace)
 
 import           Test.Hspec (hspec, describe, it, shouldBe, shouldSatisfy, Spec, Expectation)
-import           Test.HUnit (assertFailure, assert)
+import           Test.HUnit (assertFailure)
 
 import qualified ZMQHS as Z
 import qualified Data.Attoparsec.ByteString as AP
@@ -18,9 +18,10 @@ import qualified Data.ByteString.Char8 as B8
 main :: IO ()
 main = do
   hspec $ (describe "complete frame parsing" $ do
-    mapM_ completeFrameSpec completeParses) >>
+            mapM_ completeFrameSpec completeParses)
+          >>
           (describe "messages" $ do
-    mapM_ messageSpec completeMessages)
+            mapM_ messageSpec completeMessages)
 
 --------------------------------
 -- MESSAGE SPECS
@@ -30,12 +31,13 @@ messageSpec (msg,frames,expected) = it msg (messageExample frames expected)
 
 messageExample :: [B.ByteString] -> Z.Message -> Expectation
 messageExample frames expected = case AP.parse Z.getMessage (B.concat frames) of
-  AP.Done _ _   -> assert True
-  AP.Partial _  -> assertFailure "should not get a partial result"
-  AP.Fail _ _ _ -> assertFailure "should not get a failure from parsing"
+  AP.Done leftover res -> (res `shouldBe` expected) >> (leftover `shouldSatisfy` B.null)
+  AP.Partial _         -> assertFailure "should not get a partial result"
+  AP.Fail _ _ _        -> assertFailure "should not get a failure from parsing"
 
 completeMessages :: [(String,[B.ByteString],Z.Message)]
-completeMessages =  [("one part",[B.pack [2,0,65]], Z.Message [B8.pack "A"])]
+completeMessages =  [("one part", [B.pack [2,0,65]],                 Z.Message [B8.pack "A"]),
+                     ("two part", [B.pack [2,1,65],B.pack [2,0,66]], Z.Message [B8.pack "A",B8.pack "B"])]
 
 --------------------------------
 -- FRAME SPECS

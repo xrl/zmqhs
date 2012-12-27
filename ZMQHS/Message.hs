@@ -31,7 +31,7 @@ data Identity = Anonymous
               | Named FrameData
     deriving (Show)
 data Message = Message [FrameData]
-    deriving (Show)
+    deriving (Show, Eq)
 
 getMessage :: AP.Parser Message
 getMessage = Message <$> parseFrames <?> "getMessage"
