@@ -1,6 +1,8 @@
 ZMQHS: Pure ZMQ
 ===============
 
+[![Build Status](https://secure.travis-ci.org/xrl/zmqhs.png)](http://travis-ci.org/xrl/zmqhs)
+
 Pure ZMQ. No FFI.
 
   http://rfc.zeromq.org/spec:13
