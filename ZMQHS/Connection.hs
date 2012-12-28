@@ -10,7 +10,8 @@ module ZMQHS.Connection
   recvMessage,
   sendMessage,
   closeConn,
-  stopServer
+  stopServer,
+  identitySource
 )
 where
 import ZMQHS.Message   
@@ -22,6 +23,8 @@ import qualified Data.Conduit.List as CL
 import           Data.Conduit.Attoparsec
 import           Data.Conduit.Network
 import           Data.Conduit.Blaze
+
+import qualified Blaze.ByteString.Builder as BSBuilder
 
 type MessageSource = Source (ResourceT IO) Message
 instance Show MessageSource where
@@ -37,9 +40,12 @@ data Server        = Server Identity S.Socket
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
   let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  runResourceT $ (yield $ buildIdentityMessage identity) $$ ungreeted_sink
+  runResourceT $ (identitySource identity) $$ ungreeted_sink
   let greeted_message_sink   = CL.map buildMessage =$ ungreeted_sink
   return greeted_message_sink
+
+--identitySource :: Identity -> Pipe Message Message (ResourceT IO) ()
+identitySource identity = yield $ buildIdentityMessage identity
 
 greetedSource :: S.Socket -> IO (MessageSource,Identity)
 greetedSource sock = do

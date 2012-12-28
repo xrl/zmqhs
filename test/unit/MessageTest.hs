@@ -15,6 +15,12 @@ import qualified Data.Attoparsec.ByteString as AP
 import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as B8
 
+import qualified Data.Conduit.List     as CL
+import qualified Data.Conduit.Blaze    as BL
+
+import Control.Monad.Trans.Resource (runExceptionT)
+import Data.Conduit (($$), ($=), await)
+
 main :: IO ()
 main = do
   hspec $ (describe "complete frame parsing" $ do
@@ -22,6 +28,31 @@ main = do
           >>
           (describe "messages" $ do
             mapM_ messageSpec completeMessages)
+          >>
+          (describe "greeting" identitySpec)
+
+--------------------------------
+-- CONNECTION SPECS
+--------------------------------
+--greetingSpec :: Spec
+--greetingSpec = do
+--  it "greets" $ do
+--    let inputs  = map B.pack [[2,0,65], [2,1,66]]
+--        inputss = CL.sourceList inputs
+--        ident   = B.pack [65]
+--        payload = B.pack [66]
+--    ea <- runExceptionT $ inputss $$ await
+--    case ea of
+--      Right (Just val) -> val `shouldBe` (B.pack [2,0,65])
+--      Left _ -> error "should not be seen"
+
+identitySpec :: Spec
+identitySpec = do
+  it "packs up the identity and ships it out" $ do
+    ea <- runExceptionT $ (Z.identitySource Z.Anonymous $= BL.builderToByteString) $$ CL.consume
+    case ea of
+      Left _     -> assertFailure "should not be empty"
+      Right list -> list `shouldBe` ([B.pack [2,0]])
 
 --------------------------------
 -- MESSAGE SPECS
