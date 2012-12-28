@@ -52,7 +52,7 @@ identitySpec = do
     ea <- runExceptionT $ (Z.identitySource Z.Anonymous $= BL.builderToByteString) $$ CL.consume
     case ea of
       Left _     -> assertFailure "should not be empty"
-      Right list -> list `shouldBe` ([B.pack [2,0]])
+      Right list -> list `shouldBe` ([B.pack [1,0]])
 
 --------------------------------
 -- MESSAGE SPECS
