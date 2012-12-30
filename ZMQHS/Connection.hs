@@ -17,6 +17,7 @@ where
 import ZMQHS.Message   
 import ZMQHS.ConnSpec
 import Prelude hiding (sequence)
+import qualified Data.ByteString as B
 import qualified Network.Socket as S
 import           Data.Conduit as C
 import qualified Data.Conduit.List as CL
@@ -37,18 +38,17 @@ data Connection    = Connection MessageSource MessageSink S.Socket
 data Server        = Server Identity S.Socket
   deriving (Show)
 
-greetedSink :: S.Socket -> Identity -> IO MessageSink
-greetedSink sock identity = do
-  let builderSink = builderToByteString =$ sinkSocket sock
+greetedSink :: Sink B.ByteString (ResourceT IO) () -> Identity -> IO MessageSink
+greetedSink sink identity = do
+  let builderSink = builderToByteString =$ sink
   runResourceT $ (yieldIdentity identity) $$ builderSink
   return $ CL.map buildMessage =$ builderSink
 
 --yieldIdentity :: Identity -> Pipe Message Message BSBuilder.Builder () () ()
 yieldIdentity identity = yield $ buildIdentityMessage identity
 
-greetedSource :: S.Socket -> IO (MessageSource,Identity)
-greetedSource sock = do
-  let ungreetedUnidSource = sourceSocket sock
+greetedSource :: Source (ResourceT IO) B.ByteString -> IO (MessageSource,Identity)
+greetedSource ungreetedUnidSource = do
   identity <- runResourceT (ungreetedUnidSource $$ sinkParser parseIdentity)
   let greetedMessageSource   = ungreetedUnidSource $= CL.sequence (sinkParser getMessage)
   return (greetedMessageSource,identity)
@@ -60,8 +60,8 @@ client (servaddr,servport,socktype) identity = do
   sock <- S.socket (S.addrFamily servinfo) socktype S.defaultProtocol
   S.connect sock (S.addrAddress servinfo)
 
-  greeted_sink <- greetedSink sock identity
-  (greeted_source,_) <- greetedSource sock
+  greeted_sink <- greetedSink (sinkSocket sock) identity
+  (greeted_source,_) <- greetedSource $ sourceSocket sock
 
   return $ Connection greeted_source greeted_sink sock
 
@@ -73,8 +73,8 @@ startServer (hostname,servname,_) identity = do
 accept :: Server -> IO Connection
 accept (Server identity listenersock) = do
   (sock, _) <- S.accept listenersock
-  greeted_sink <- greetedSink sock identity
-  (greeted_source,_) <- greetedSource sock
+  greeted_sink <- greetedSink (sinkSocket sock) identity
+  (greeted_source,_) <- greetedSource $ sourceSocket sock
   return $ Connection greeted_source greeted_sink sock
 
 recvMessage :: Connection -> IO (Maybe Message)
