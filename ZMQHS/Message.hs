@@ -4,7 +4,6 @@
 module ZMQHS.Message
 (
   getMessage,
-  pureIdentity,
   parseIdentity,
   buildIdentityMessage,
   buildMessage,
@@ -42,11 +41,6 @@ parseFrames = do
   case frame of
     (MoreFrame  payload) -> (payload :) <$> parseFrames
     (FinalFrame payload) -> return [payload]
-
-pureIdentity :: FrameData -> Identity
-pureIdentity frame
-  | BS.length frame == 0 = Anonymous
-  | otherwise            = Named frame
 
 parseIdentity :: AP.Parser Identity
 parseIdentity = do

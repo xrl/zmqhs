@@ -11,14 +11,14 @@ module ZMQHS.Connection
   sendMessage,
   closeConn,
   stopServer,
-  identitySource
+  yieldIdentity
 )
 where
 import ZMQHS.Message   
 import ZMQHS.ConnSpec
 import Prelude hiding (sequence)
 import qualified Network.Socket as S
-import           Data.Conduit
+import           Data.Conduit as C
 import qualified Data.Conduit.List as CL
 import           Data.Conduit.Attoparsec
 import           Data.Conduit.Network
@@ -39,22 +39,19 @@ data Server        = Server Identity S.Socket
 
 greetedSink :: S.Socket -> Identity -> IO MessageSink
 greetedSink sock identity = do
-  let ungreeted_sink = builderToByteString =$ sinkSocket sock
-  runResourceT $ (identitySource identity) $$ ungreeted_sink
-  let greeted_message_sink   = CL.map buildMessage =$ ungreeted_sink
-  return greeted_message_sink
+  let builderSink = builderToByteString =$ sinkSocket sock
+  runResourceT $ (yieldIdentity identity) $$ builderSink
+  return $ CL.map buildMessage =$ builderSink
 
---identitySource :: Identity -> Pipe Message Message (ResourceT IO) ()
-identitySource identity = yield $ buildIdentityMessage identity
+--yieldIdentity :: Identity -> Pipe Message Message BSBuilder.Builder () () ()
+yieldIdentity identity = yield $ buildIdentityMessage identity
 
 greetedSource :: S.Socket -> IO (MessageSource,Identity)
 greetedSource sock = do
-  let ungreeted_unid_source = sourceSocket sock
-    -- This is a strict interpretation of how the other ZMQ respondent will behave. Pattern match failure if they're deviant!
-  let get_identity = ungreeted_unid_source $$ sinkParser getMessage
-  (Message (frame:[])) <- runResourceT get_identity
-  let greeted_message_source   = ungreeted_unid_source $= CL.sequence (sinkParser getMessage)
-  return (greeted_message_source,pureIdentity frame)
+  let ungreetedUnidSource = sourceSocket sock
+  identity <- runResourceT (ungreetedUnidSource $$ sinkParser parseIdentity)
+  let greetedMessageSource   = ungreetedUnidSource $= CL.sequence (sinkParser getMessage)
+  return (greetedMessageSource,identity)
 
 client :: ConnSpec -> Identity -> IO Connection
 client (servaddr,servport,socktype) identity = do
