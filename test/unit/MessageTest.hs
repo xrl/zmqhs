@@ -48,11 +48,16 @@ main = do
 
 identitySpec :: Spec
 identitySpec = do
-  it "packs up the identity and ships it out" $ do
-    ea <- runExceptionT $ (Z.identitySource Z.Anonymous $= BL.builderToByteString) $$ CL.consume
+  it "packs up an Anonymous identity and ships it out" $ do
+    ea <- runExceptionT $ (Z.yieldIdentity Z.Anonymous $= BL.builderToByteString) $$ CL.consume
     case ea of
-      Left _     -> assertFailure "should not be empty"
+      Left _     -> assertFailure "should not fail"
       Right list -> list `shouldBe` ([B.pack [1,0]])
+  it "packs up a named identity and ships it out" $ do
+    ea <- runExceptionT $ (Z.yieldIdentity (Z.Named (B8.pack "Billy")) $= BL.builderToByteString) $$ CL.consume
+    case ea of
+      Left _     -> assertFailure "should not fail"
+      Right list -> list `shouldBe` ([B.concat [B.pack [6,0], B8.pack "Billy"]])
 
 --------------------------------
 -- MESSAGE SPECS
